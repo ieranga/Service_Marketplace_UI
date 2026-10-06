@@ -51,35 +51,48 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
   position: absolute;
   left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-subtle);
   pointer-events: none;
+  z-index: 1;
 }
 
 .input-with-icon .form-control {
   padding-left: 2.75rem;
+  padding-right: 2.75rem;
+  width: 100%;
 }
 
+.eye-toggle-btn,
 .icon-btn-ghost {
   position: absolute;
   right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   color: var(--text-subtle);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.35rem;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-fast);
+  z-index: 2;
 }
 
+.eye-toggle-btn:hover,
 .icon-btn-ghost:hover {
   color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .form-actions {
