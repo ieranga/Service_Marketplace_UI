@@ -1,0 +1,349 @@
+<div class="service-mode-wrapper">
+  <!-- Service Mode Header -->
+  <div class="service-mode-header card-glass">
+    <div class="header-left">
+      <div class="mode-badge">
+        <span class="badge-icon">🛠️</span>
+        <span class="badge-text">SERVICE MODE ACTIVATED</span>
+      </div>
+      <h1 class="header-title">{{ profileBusinessName() || 'My Service Business' }}</h1>
+      <p class="header-sub">
+        Manage your service offerings, update your provider profile, and explore incoming customer job requests.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="btn btn-outline" (click)="openProfileModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Service Profile</span>
+      </button>
+
+      <button type="button" class="btn btn-primary" (click)="openCreateModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Offer New Service</span>
+      </button>
+
+      <button type="button" class="btn btn-exit" (click)="exitServiceMode()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+        <span>Back to Dashboard</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Feedback Banner -->
+  @if (feedbackMessage()) {
+    <div class="feedback-banner" [class.success]="feedbackMessage()?.type === 'success'" [class.error]="feedbackMessage()?.type === 'error'">
+      <span>{{ feedbackMessage()?.text }}</span>
+      <button type="button" class="close-feedback" (click)="feedbackMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Stats Grid -->
+  <div class="stats-row">
+    <div class="stat-card card-glass">
+      <span class="stat-label">Active Services</span>
+      <span class="stat-val">{{ myServices().length }}</span>
+      <span class="stat-sub">Offered to marketplace</span>
+    </div>
+    <div class="stat-card card-glass">
+      <span class="stat-label">Available Job Requests</span>
+      <span class="stat-val">{{ incomingJobs().length }}</span>
+      <span class="stat-sub">From marketplace customers</span>
+    </div>
+    <div class="stat-card card-glass">
+      <span class="stat-label">Provider Status</span>
+      <span class="stat-val status-badge">Active</span>
+      <span class="stat-sub">Ready to receive bookings</span>
+    </div>
+  </div>
+
+  <!-- Main Content Layout -->
+  <div class="service-content-grid">
+    <!-- Left Column: My Offered Services -->
+    <div class="services-column">
+      <div class="column-header">
+        <div>
+          <h2 class="column-title">🛠️ My Service Offerings ({{ myServices().length }})</h2>
+          <p class="column-sub">Services currently published and discoverable by AI and customers</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" (click)="openCreateModal()">+ Add Service</button>
+      </div>
+
+      @if (isLoading()) {
+        <div class="loading-box">
+          <div class="spinner"></div>
+          <span>Loading your service offerings...</span>
+        </div>
+      } @else if (myServices().length === 0) {
+        <div class="empty-card card-glass">
+          <div class="empty-icon">📦</div>
+          <h3>No services offered yet</h3>
+          <p>You haven't listed any services in Service Mode. Start offering your expertise today!</p>
+          <button type="button" class="btn btn-primary btn-sm mt-3" (click)="openCreateModal()">Offer Your First Service</button>
+        </div>
+      } @else {
+        <div class="service-items-list">
+          @for (service of myServices(); track service.id) {
+            <div class="service-item card-glass card-hoverable">
+              <div class="item-top">
+                <div class="badge-row">
+                  <span class="badge badge-secondary">{{ service.categoryName }}</span>
+                  @if (service.supportsHomeVisit) {
+                    <span class="badge badge-accent">🏠 Home Visit</span>
+                  }
+                </div>
+                <button type="button" class="btn-delete" title="Delete listing" (click)="deleteService(service.id)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
+
+              <h3 class="service-name">{{ service.variantName }}</h3>
+              <p class="service-category-tag">Category: {{ service.categoryName }} &bull; Service: {{ service.serviceName }}</p>
+
+              @if (service.description) {
+                <p class="service-desc">{{ service.description }}</p>
+              }
+
+              <div class="service-areas-row">
+                <span class="area-tag">📍 {{ service.serviceAreas.join(', ') || 'Islandwide' }}</span>
+              </div>
+
+              <div class="item-bottom">
+                <div class="price-info">
+                  <span class="price-val">Rs. {{ service.startingPrice.toLocaleString() }}</span>
+                  <span class="price-unit">/ {{ service.priceUnit }}</span>
+                </div>
+                <span class="status-pill active">Published</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Right Column: Marketplace Opportunities (Job Demands) -->
+    <div class="jobs-column">
+      <div class="column-header">
+        <div>
+          <h2 class="column-title">📋 Open Customer Job Requests ({{ incomingJobs().length }})</h2>
+          <p class="column-sub">Marketplace jobs looking for service providers like you</p>
+        </div>
+      </div>
+
+      @if (incomingJobs().length === 0) {
+        <div class="empty-card card-glass">
+          <div class="empty-icon">🔍</div>
+          <h3>No open jobs right now</h3>
+          <p>Check back soon as customers post new service requests.</p>
+        </div>
+      } @else {
+        <div class="job-items-list">
+          @for (job of incomingJobs(); track job.id) {
+            <div class="job-item card-glass card-hoverable">
+              <div class="item-top">
+                <span class="badge badge-warning">{{ job.status }}</span>
+                @if (job.urgencyOrPreferredDate) {
+                  <span class="urgency-pill">⚡ {{ job.urgencyOrPreferredDate }}</span>
+                }
+              </div>
+
+              <h3 class="job-title">{{ job.title }}</h3>
+              <p class="job-author">Customer: {{ job.receiverName }}</p>
+
+              @if (job.description) {
+                <p class="job-desc">{{ job.description }}</p>
+              }
+
+              <div class="job-meta">
+                @if (job.jobAreas.length > 0) {
+                  <span>📍 {{ job.jobAreas[0].cityName }}</span>
+                }
+                <span>💳 {{ job.paymentMethod }}</span>
+              </div>
+
+              <div class="item-bottom">
+                <div class="budget-info">
+                  <span class="budget-label">Budget</span>
+                  <span class="budget-val">Rs. {{ job.budget ? job.budget.toLocaleString() : 'Negotiable' }}</span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm">Contact Customer</button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Create Service Modal -->
+  @if (showCreateModal()) {
+    <div class="modal-backdrop" (click)="closeCreateModal()">
+      <div class="modal-card card-glass" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2 class="modal-title">Offer a New Service Listing</h2>
+          <button type="button" class="modal-close-btn" (click)="closeCreateModal()">✕</button>
+        </div>
+
+        <form (ngSubmit)="submitNewService()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">Service Category & Variant *</label>
+            <select 
+              class="form-select" 
+              [ngModel]="newServiceVariantId()" 
+              (ngModelChange)="newServiceVariantId.set($event)" 
+              name="serviceVariantId" 
+              required
+            >
+              @for (variant of availableVariants(); track variant.id) {
+                <option [ngValue]="variant.id">
+                  {{ variant.categoryName }} → {{ variant.serviceName }} → {{ variant.name }}
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Starting Price (LKR) *</label>
+              <input 
+                type="number" 
+                class="form-input" 
+                [ngModel]="newServicePrice()" 
+                (ngModelChange)="newServicePrice.set($event)" 
+                name="startingPrice" 
+                min="0" 
+                required
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Price Unit *</label>
+              <select 
+                class="form-select" 
+                [ngModel]="newServiceUnit()" 
+                (ngModelChange)="newServiceUnit.set($event)" 
+                name="priceUnit"
+              >
+                <option value="Per Job">Per Job</option>
+                <option value="Per Hour">Per Hour</option>
+                <option value="Per Day">Per Day</option>
+                <option value="Per Sq.Ft">Per Sq.Ft</option>
+                <option value="Fixed">Fixed Quote</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Service Area Cities (comma-separated)</label>
+            <input 
+              type="text" 
+              class="form-input" 
+              [ngModel]="newServiceCities()" 
+              (ngModelChange)="newServiceCities.set($event)" 
+              name="serviceAreaCities" 
+              placeholder="e.g. Negombo, Katunayake, Ja-Ela"
+            />
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [ngModel]="newServiceHomeVisit()" 
+                (ngModelChange)="newServiceHomeVisit.set($event)" 
+                name="supportsHomeVisit"
+              />
+              <span>Supports Home / On-site Visit</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Service Description</label>
+            <textarea 
+              class="form-textarea" 
+              rows="3" 
+              [ngModel]="newServiceDescription()" 
+              (ngModelChange)="newServiceDescription.set($event)" 
+              name="description" 
+              placeholder="Describe your expertise, experience, and what's included..."
+            ></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" (click)="closeCreateModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="spinner"></span>
+                <span>Publishing...</span>
+              } @else {
+                <span>Publish Listing</span>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Service Profile Settings Modal -->
+  @if (showProfileModal()) {
+    <div class="modal-backdrop" (click)="closeProfileModal()">
+      <div class="modal-card card-glass" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2 class="modal-title">Edit Service Mode Profile</h2>
+          <button type="button" class="modal-close-btn" (click)="closeProfileModal()">✕</button>
+        </div>
+
+        <form (ngSubmit)="saveProfile()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">Business / Display Name *</label>
+            <input 
+              type="text" 
+              class="form-input" 
+              [ngModel]="profileBusinessName()" 
+              (ngModelChange)="profileBusinessName.set($event)" 
+              name="profileBusinessName" 
+              placeholder="e.g. Eranga Auto Care" 
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Default Operating Cities (comma-separated)</label>
+            <input 
+              type="text" 
+              class="form-input" 
+              [ngModel]="profileServiceAreas()" 
+              (ngModelChange)="profileServiceAreas.set($event)" 
+              name="profileServiceAreas" 
+              placeholder="e.g. Negombo, Katunayake, Colombo"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Provider Bio / Summary</label>
+            <textarea 
+              class="form-textarea" 
+              rows="3" 
+              [ngModel]="profileBio()" 
+              (ngModelChange)="profileBio.set($event)" 
+              name="profileBio" 
+              placeholder="Introduce your business and background..."
+            ></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" (click)="closeProfileModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="isSavingProfile()">
+              @if (isSavingProfile()) {
+                <span class="spinner"></span>
+                <span>Saving...</span>
+              } @else {
+                <span>Save Profile</span>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

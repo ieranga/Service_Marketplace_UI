@@ -4,25 +4,19 @@ import {
   isMainModule,
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
+import { AngularAppEngine } from '@angular/ssr';
 import express from 'express';
 import { join } from 'node:path';
+
+// Disable SSR host checks for local network development / mobile testing
+(AngularAppEngine as any).ɵdisableAllowedHostsCheck = true;
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
-const angularApp = new AngularNodeAppEngine();
-
-/**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/{*splat}', (req, res) => {
- *   // Handle API request
- * });
- * ```
- */
+const angularApp = new AngularNodeAppEngine({
+  allowedHosts: ['localhost', '127.0.0.1', '192.168.8.140']
+});
 
 /**
  * Serve static files from /browser

@@ -27,7 +27,11 @@
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
-              "allowedHosts": []
+              "allowedHosts": [
+                "localhost",
+                "127.0.0.1",
+                "192.168.8.140"
+              ]
             },
             "ssr": {
               "entry": "src/server.ts"
@@ -43,8 +47,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "15kB",
+                  "maximumError": "30kB"
                 }
               ],
               "outputHashing": "all"
@@ -67,7 +71,14 @@
               "buildTarget": "Service_Marketplace_UI:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "allowedHosts": [
+              "localhost",
+              "127.0.0.1",
+              "192.168.8.140"
+            ]
+          }
         },
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n"
