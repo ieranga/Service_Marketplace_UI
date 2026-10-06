@@ -15,25 +15,14 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  email = signal<string>('kamal.perera@example.com');
-  password = signal<string>('Password123!');
+  email = signal<string>('');
+  password = signal<string>('');
   showPassword = signal<boolean>(false);
   isLoading = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
 
   toggleShowPassword(): void {
     this.showPassword.update(v => !v);
-  }
-
-  fillDemo(type: 'kamal' | 'admin'): void {
-    if (type === 'kamal') {
-      this.email.set('kamal.perera@example.com');
-      this.password.set('Password123!');
-    } else {
-      this.email.set('ishara11626@gmail.com');
-      this.password.set('SuperAdmin123!');
-    }
-    this.errorMessage.set(null);
   }
 
   onSubmit(): void {
