@@ -435,3 +435,55 @@
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Onboarding Setup Hero */
+.setup-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.75rem 2rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(236, 72, 153, 0.12) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3);
+  margin-bottom: 1.5rem;
+}
+
+.setup-hero-icon {
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  flex-shrink: 0;
+}
+
+.setup-hero-content {
+  flex: 1;
+}
+
+.setup-hero-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem 0;
+  color: #fff;
+}
+
+.setup-hero-desc {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 0 0 0.85rem 0;
+}
+
+@media (max-width: 640px) {
+  .setup-profile-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem;
+  }
+}

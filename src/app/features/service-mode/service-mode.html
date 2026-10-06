@@ -15,7 +15,7 @@
     <div class="header-actions">
       <button type="button" class="btn btn-outline" (click)="openProfileModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span>Service Profile</span>
+        <span>{{ hasServiceProfile() ? 'Edit Profile' : 'Create Profile' }}</span>
       </button>
 
       <button type="button" class="btn btn-primary" (click)="openCreateModal()">
@@ -35,6 +35,23 @@
     <div class="feedback-banner" [class.success]="feedbackMessage()?.type === 'success'" [class.error]="feedbackMessage()?.type === 'error'">
       <span>{{ feedbackMessage()?.text }}</span>
       <button type="button" class="close-feedback" (click)="feedbackMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Onboarding Hero: Shown when user does not have a service profile yet -->
+  @if (!hasServiceProfile()) {
+    <div class="setup-profile-hero card-glass animate-pop">
+      <div class="setup-hero-icon">🛠️</div>
+      <div class="setup-hero-content">
+        <h2 class="setup-hero-title">Service Provider Profile Required</h2>
+        <p class="setup-hero-desc">
+          You haven't set up your Service Provider Profile yet. Create your profile with your business name, operating cities, and a bio to start offering services and accepting bookings.
+        </p>
+        <button type="button" class="btn btn-primary btn-md mt-2" (click)="openProfileModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Set Up Profile Now</span>
+        </button>
+      </div>
     </div>
   }
 
@@ -289,7 +306,7 @@
     <div class="modal-backdrop" (click)="closeProfileModal()">
       <div class="modal-card card-glass" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h2 class="modal-title">Edit Service Mode Profile</h2>
+          <h2 class="modal-title">{{ hasServiceProfile() ? 'Edit Service Mode Profile' : 'Create Service Provider Profile' }}</h2>
           <button type="button" class="modal-close-btn" (click)="closeProfileModal()">✕</button>
         </div>
 
@@ -338,7 +355,7 @@
                 <span class="spinner"></span>
                 <span>Saving...</span>
               } @else {
-                <span>Save Profile</span>
+                <span>{{ hasServiceProfile() ? 'Save Profile' : 'Create Profile & Continue' }}</span>
               }
             </button>
           </div>

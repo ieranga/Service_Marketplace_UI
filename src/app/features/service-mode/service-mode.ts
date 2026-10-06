@@ -38,6 +38,7 @@ export class ServiceModeComponent implements OnInit {
   isSavingProfile = signal<boolean>(false);
   showCreateModal = signal<boolean>(false);
   showProfileModal = signal<boolean>(false);
+  hasServiceProfile = signal<boolean>(!!this.auth.currentUser()?.hasServiceProfile);
   feedbackMessage = signal<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Service Profile Form Model
@@ -75,8 +76,12 @@ export class ServiceModeComponent implements OnInit {
       next: (res) => {
         if (res.success && res.data) {
           this.myServices.set(res.data);
-          if (res.data.length > 0 && res.data[0].businessName) {
-            this.profileBusinessName.set(res.data[0].businessName);
+          if (res.data.length > 0) {
+            this.hasServiceProfile.set(true);
+            this.auth.updateCurrentUserProfileStatus(true);
+            if (res.data[0].businessName) {
+              this.profileBusinessName.set(res.data[0].businessName);
+            }
           }
         }
         this.isLoading.set(false);
@@ -118,6 +123,11 @@ export class ServiceModeComponent implements OnInit {
   }
 
   openCreateModal(): void {
+    if (!this.hasServiceProfile()) {
+      this.feedbackMessage.set({ type: 'error', text: 'You must set up your Service Profile before offering services.' });
+      this.openProfileModal();
+      return;
+    }
     this.feedbackMessage.set(null);
     this.showCreateModal.set(true);
   }
@@ -144,28 +154,63 @@ export class ServiceModeComponent implements OnInit {
       .map(c => c.trim())
       .filter(c => c.length > 0);
 
-    const dto: UpdateServiceProfileRequest = {
-      businessName: this.profileBusinessName().trim() || undefined,
-      bio: this.profileBio().trim() || undefined,
-      serviceAreaCities: areas
-    };
+    const businessName = this.profileBusinessName().trim() || undefined;
+    const bio = this.profileBio().trim() || undefined;
 
-    this.marketplaceService.updateServiceProfile(dto).subscribe({
-      next: (res) => {
-        this.isSavingProfile.set(false);
-        if (res.success) {
-          this.auth.updateCurrentUserProfileStatus(true);
-          this.feedbackMessage.set({ type: 'success', text: 'Service Profile updated successfully!' });
-          this.closeProfileModal();
-        } else {
-          this.feedbackMessage.set({ type: 'error', text: res.message || 'Failed to update service profile.' });
+    if (!this.hasServiceProfile()) {
+      // 1. Create Service Profile
+      this.marketplaceService.createServiceProfile({
+        businessName,
+        bio,
+        serviceAreaCities: areas
+      }).subscribe({
+        next: (res) => {
+          this.isSavingProfile.set(false);
+          if (res.success) {
+            this.hasServiceProfile.set(true);
+            this.auth.updateCurrentUserProfileStatus(true);
+            this.feedbackMessage.set({ type: 'success', text: 'Service Profile created! You can now offer new services.' });
+            this.closeProfileModal();
+            this.loadData();
+          } else {
+            this.feedbackMessage.set({ type: 'error', text: res.message || 'Failed to create service profile.' });
+          }
+        },
+        error: (err) => {
+          this.isSavingProfile.set(false);
+          // If profile was already present on backend, update local status
+          if (err?.error?.message?.includes('already exists')) {
+            this.hasServiceProfile.set(true);
+            this.auth.updateCurrentUserProfileStatus(true);
+            this.saveProfile();
+          } else {
+            this.feedbackMessage.set({ type: 'error', text: err.error?.message || 'Error creating service profile.' });
+          }
         }
-      },
-      error: (err) => {
-        this.isSavingProfile.set(false);
-        this.feedbackMessage.set({ type: 'error', text: err.error?.message || 'Error updating service profile.' });
-      }
-    });
+      });
+    } else {
+      // 2. Update Service Profile
+      this.marketplaceService.updateServiceProfile({
+        businessName,
+        bio,
+        serviceAreaCities: areas
+      }).subscribe({
+        next: (res) => {
+          this.isSavingProfile.set(false);
+          if (res.success) {
+            this.auth.updateCurrentUserProfileStatus(true);
+            this.feedbackMessage.set({ type: 'success', text: 'Service Profile updated successfully!' });
+            this.closeProfileModal();
+          } else {
+            this.feedbackMessage.set({ type: 'error', text: res.message || 'Failed to update service profile.' });
+          }
+        },
+        error: (err) => {
+          this.isSavingProfile.set(false);
+          this.feedbackMessage.set({ type: 'error', text: err.error?.message || 'Error updating service profile.' });
+        }
+      });
+    }
   }
 
   submitNewService(): void {
