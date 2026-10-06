@@ -22,12 +22,12 @@
         <span>Dashboard</span>
       </a>
 
-      <!-- Single Service Mode Button: visible only for Role ID = 1 -->
+      <!-- Create Jobs Button: visible only for Role ID = 1 next to Dashboard -->
       @if (auth.isAuthenticated() && auth.isMarketplaceUser()) {
-        <a routerLink="/service-mode" routerLinkActive="active" class="nav-item service-mode-link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          <span>Service Mode</span>
-        </a>
+        <button type="button" class="nav-item create-job-nav-btn" (click)="openCreateJobModal()" title="Create and post a new job request">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>Create Jobs</span>
+        </button>
       }
     </nav>
 
@@ -109,6 +109,14 @@
         </a>
 
         @if (auth.isAuthenticated()) {
+          <!-- Create Jobs Button for mobile -->
+          @if (auth.isMarketplaceUser()) {
+            <button type="button" class="mobile-nav-item create-job-mobile-btn" (click)="openCreateJobModal()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>Create Jobs</span>
+            </button>
+          }
+
           <div class="mobile-user-card">
             <div class="user-avatar">{{ getUserInitials() }}</div>
             <div>
@@ -140,4 +148,7 @@
       </div>
     </div>
   }
+
+  <!-- Create Job Modal Window -->
+  <app-create-job-modal></app-create-job-modal>
 </header>

@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AiService } from '../../core/services/ai.service';
 import { MarketplaceService } from '../../core/services/marketplace.service';
 import { AuthService } from '../../core/services/auth.service';
+import { JobModalService } from '../../core/services/job-modal.service';
 import { ServiceDiscoveryResult } from '../../core/models/ai.models';
 import { ProviderServiceListing, UserJob, Category, ServiceVariant } from '../../core/models/marketplace.models';
 
@@ -18,6 +19,7 @@ import { ProviderServiceListing, UserJob, Category, ServiceVariant } from '../..
 export class DashboardComponent implements OnInit {
   private readonly aiService = inject(AiService);
   private readonly marketplaceService = inject(MarketplaceService);
+  private readonly jobModalService = inject(JobModalService);
   private readonly platformId = inject(PLATFORM_ID);
   readonly auth = inject(AuthService);
 
@@ -83,6 +85,9 @@ export class DashboardComponent implements OnInit {
     if (isPlatformBrowser(this.platformId)) {
       this.loadMarketplaceData();
       this.loadCategories();
+      this.jobModalService.jobCreated$.subscribe(() => {
+        this.loadMarketplaceData();
+      });
     }
   }
 
@@ -211,7 +216,7 @@ export class DashboardComponent implements OnInit {
       this.newJobTitle.set(initialTitle);
     }
     this.jobFeedbackMessage.set(null);
-    this.showCreateJobModal.set(true);
+    this.jobModalService.open();
   }
 
   closeCreateJobModal(): void {

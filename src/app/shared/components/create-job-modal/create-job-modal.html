@@ -1,0 +1,200 @@
+@if (modalService.isOpen()) {
+  <div class="modal-backdrop" (click)="onBackdropClick($event)">
+    <div class="modal-card card-glass animate-pop" (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="modal-header">
+        <div class="modal-header-text">
+          <div class="modal-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Role: Marketplace User</span>
+          </div>
+          <h2 class="modal-title">Create a New Job Request</h2>
+          <p class="modal-subtitle">Post your requirements and get matched with qualified service providers across Sri Lanka</p>
+        </div>
+        <button type="button" class="btn-close" (click)="close()" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Error / Success Alert -->
+      @if (feedbackMessage()) {
+        <div class="alert" [class.alert-error]="feedbackMessage()?.type === 'error'" [class.alert-success]="feedbackMessage()?.type === 'success'">
+          @if (feedbackMessage()?.type === 'error') {
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          } @else {
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          }
+          <span>{{ feedbackMessage()?.text }}</span>
+        </div>
+      }
+
+      <!-- Form Body -->
+      <form (ngSubmit)="submitJob()" class="job-form">
+        <!-- Job Title -->
+        <div class="form-group">
+          <label class="form-label" for="job-title">Job Title *</label>
+          <input 
+            type="text" 
+            id="job-title"
+            class="form-control" 
+            placeholder="e.g. Need House Painting & Deep Cleaning in Negombo" 
+            [ngModel]="title()" 
+            (ngModelChange)="title.set($event)" 
+            name="title" 
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Category & Variant Selection -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-cat">Service Category</label>
+            <select 
+              id="job-cat"
+              class="form-select" 
+              [ngModel]="selectedCategoryId()" 
+              (ngModelChange)="onCategoryChange($event)" 
+              name="selectedCategory"
+            >
+              <option [ngValue]="null">Select a category (optional)</option>
+              @for (cat of categories(); track cat.id) {
+                <option [ngValue]="cat.id">{{ cat.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-variant">Specific Service / Variant</label>
+            <select 
+              id="job-variant"
+              class="form-select" 
+              [ngModel]="selectedVariantId()" 
+              (ngModelChange)="selectedVariantId.set($event)" 
+              name="selectedVariant"
+            >
+              <option [ngValue]="null">General / Any variant</option>
+              @for (v of availableVariants(); track v.id) {
+                <option [ngValue]="v.id">{{ v.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Budget & Urgency -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-budget">Estimated Budget (Rs. LKR)</label>
+            <div class="input-currency-wrapper">
+              <span class="currency-prefix">Rs.</span>
+              <input 
+                type="number" 
+                id="job-budget"
+                class="form-control with-prefix" 
+                placeholder="5000" 
+                [ngModel]="budget()" 
+                (ngModelChange)="budget.set($event)" 
+                name="budget" 
+                min="0"
+                step="500"
+              />
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-urgency">Timeline / Urgency</label>
+            <select 
+              id="job-urgency"
+              class="form-select" 
+              [ngModel]="urgency()" 
+              (ngModelChange)="urgency.set($event)" 
+              name="urgency"
+            >
+              <option value="Urgent / Today">🚨 Urgent / Today</option>
+              <option value="Tomorrow">Tomorrow</option>
+              <option value="This Weekend">This Weekend</option>
+              <option value="Within 3 Days">Within 3 Days</option>
+              <option value="Next Week">Next Week</option>
+              <option value="Flexible">Flexible Timeline</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- City & Payment Method -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-city">City / Location *</label>
+            <input 
+              type="text" 
+              id="job-city"
+              class="form-control" 
+              placeholder="e.g. Negombo, Colombo, Rathnapura" 
+              [ngModel]="city()" 
+              (ngModelChange)="city.set($event)" 
+              name="city" 
+              required
+            />
+          </div>
+
+          <div class="form-group flex-1">
+            <label class="form-label" for="job-payment">Preferred Payment Method</label>
+            <select 
+              id="job-payment"
+              class="form-select" 
+              [ngModel]="paymentMethod()" 
+              (ngModelChange)="paymentMethod.set($event)" 
+              name="paymentMethod"
+            >
+              <option value="Cash">💵 Cash on Completion</option>
+              <option value="Online Payment">💳 Online Payment</option>
+              <option value="Bank Transfer">🏦 Bank Transfer</option>
+              <option value="Any">Any Method</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Address / Landmark -->
+        <div class="form-group">
+          <label class="form-label" for="job-address">Address or Landmark (Optional)</label>
+          <input 
+            type="text" 
+            id="job-address"
+            class="form-control" 
+            placeholder="e.g. Near St. Mary's Church, Main Road" 
+            [ngModel]="address()" 
+            (ngModelChange)="address.set($event)" 
+            name="address" 
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label class="form-label" for="job-desc">Job Details & Scope</label>
+          <textarea 
+            id="job-desc"
+            class="form-control form-textarea" 
+            rows="3" 
+            placeholder="Describe what needs to be done, specific requirements, or materials needed..."
+            [ngModel]="description()" 
+            (ngModelChange)="description.set($event)" 
+            name="description"
+          ></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="close()" [disabled]="isSubmitting()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <div class="spinner-sm"></div>
+              <span>Creating Job...</span>
+            } @else {
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Post Job</span>
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

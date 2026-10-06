@@ -101,6 +101,31 @@
   border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
+.create-job-nav-btn {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  color: #c7d2fe;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.create-job-nav-btn:hover {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: rgba(129, 140, 248, 0.5);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+}
+
+.create-job-mobile-btn {
+  background: rgba(99, 102, 241, 0.12) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  color: #c7d2fe !important;
+  font-weight: 700 !important;
+}
+
 /* Right Nav Actions */
 .nav-actions {
   display: flex;

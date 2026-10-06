@@ -22,6 +22,8 @@ export interface User {
   roleId?: number;
   status: string | number;
   nic?: string;
+  city?: string;
+  address?: string;
   hasServiceProfile?: boolean;
 }
 

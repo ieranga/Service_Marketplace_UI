@@ -2,16 +2,19 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { JobModalService } from '../../../core/services/job-modal.service';
+import { CreateJobModalComponent } from '../create-job-modal/create-job-modal';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterLink, RouterLinkActive, CreateJobModalComponent],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })
 export class NavbarComponent {
   readonly auth = inject(AuthService);
+  readonly jobModal = inject(JobModalService);
   private readonly router = inject(Router);
 
   readonly isMenuOpen = signal<boolean>(false);
@@ -31,6 +34,12 @@ export class NavbarComponent {
 
   closeProfileMenu(): void {
     this.isProfileMenuOpen.set(false);
+  }
+
+  openCreateJobModal(): void {
+    this.closeProfileMenu();
+    this.closeMobileMenu();
+    this.jobModal.open();
   }
 
   goToServiceMode(): void {
