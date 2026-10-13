@@ -15,23 +15,6 @@
   margin: 0 auto;
 }
 
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  padding: 0.4rem 1rem;
-  border-radius: var(--radius-full);
-  font-size: 0.825rem;
-  font-weight: 600;
-  color: #c7d2fe;
-  margin-bottom: 1.5rem;
-}
-
-.sparkle-icon {
-  font-size: 1rem;
-}
 
 .hero-title {
   font-size: clamp(2.1rem, 5vw, 3.4rem);
