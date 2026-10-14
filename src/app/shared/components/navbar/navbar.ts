@@ -42,7 +42,13 @@ export class NavbarComponent {
     this.jobModal.open();
   }
 
-  goToServiceMode(): void {
+  goToJobOfferMode(): void {
+    this.closeProfileMenu();
+    this.closeMobileMenu();
+    this.router.navigate(['/dashboard']);
+  }
+
+    goToServiceMode(): void {
     this.closeProfileMenu();
     this.closeMobileMenu();
     this.router.navigate(['/service-mode']);

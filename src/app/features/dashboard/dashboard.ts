@@ -26,6 +26,8 @@ export class DashboardComponent implements OnInit {
   aiQuery = signal<string>('I need someone to wash my car at my home in Negombo this weekend');
   aiLocation = signal<string>('Negombo');
   aiMaxBudget = signal<number | null>(null);
+  isVoiceListening = signal<boolean>(false);
+  private speechRecognition: any = null;
   isAiSearching = signal<boolean>(false);
   aiResult = signal<ServiceDiscoveryResult | null>(null);
   aiError = signal<string | null>(null);
@@ -91,6 +93,57 @@ export class DashboardComponent implements OnInit {
       this.jobModalService.jobCreated$.subscribe(() => {
         this.loadMarketplaceData();
       });
+    }
+  }
+
+    toggleVoiceFinder(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    if (this.isVoiceListening()) {
+      if (this.speechRecognition) {
+        try { this.speechRecognition.stop(); } catch {}
+      }
+      this.isVoiceListening.set(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    try {
+      this.speechRecognition = new SpeechRecognition();
+      this.speechRecognition.continuous = false;
+      this.speechRecognition.interimResults = false;
+      this.speechRecognition.lang = 'en-US';
+
+      this.speechRecognition.onstart = () => {
+        this.isVoiceListening.set(true);
+      };
+
+      this.speechRecognition.onresult = (event: any) => {
+        if (event.results && event.results[0] && event.results[0][0]) {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            const current = this.aiQuery().trim();
+            this.aiQuery.set(current ? `${current} ${transcript}` : transcript);
+          }
+        }
+      };
+
+      this.speechRecognition.onerror = () => {
+        this.isVoiceListening.set(false);
+      };
+
+      this.speechRecognition.onend = () => {
+        this.isVoiceListening.set(false);
+      };
+
+      this.speechRecognition.start();
+    } catch {
+      this.isVoiceListening.set(false);
     }
   }
 
