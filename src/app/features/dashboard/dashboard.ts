@@ -121,19 +121,25 @@ export class DashboardComponent implements OnInit {
   loadMarketplaceData(): void {
     this.isLoadingMarketplace.set(true);
 
-    if (this.auth.isMarketplaceUser()) {
-      // Role ID = 1: Load ONLY services and jobs created by the authenticated user
-      this.marketplaceService.getMyServices().subscribe({
-        next: (res) => {
-          this.services.set(res.success && res.data ? res.data : []);
-          this.isLoadingMarketplace.set(false);
-        },
-        error: () => {
-          this.services.set([]);
-          this.isLoadingMarketplace.set(false);
-        }
-      });
+    const filter = {
+      location: this.locationFilter().trim() || undefined,
+      categoryId: this.selectedCategory() || undefined
+    };
 
+    // Load active provider services for "Service Provider Services"
+    this.marketplaceService.getServices(filter).subscribe({
+      next: (res) => {
+        this.services.set(res.success && res.data ? res.data : []);
+        this.isLoadingMarketplace.set(false);
+      },
+      error: () => {
+        this.services.set([]);
+        this.isLoadingMarketplace.set(false);
+      }
+    });
+
+    if (this.auth.isMarketplaceUser()) {
+      // Role ID = 1: Load ongoing jobs created by the authenticated user
       this.marketplaceService.getMyJobs().subscribe({
         next: (res) => {
           this.jobs.set(res.success && res.data ? res.data : []);
@@ -143,23 +149,7 @@ export class DashboardComponent implements OnInit {
         }
       });
     } else {
-      // Guests / Admins: Load all public services and jobs with optional server filters
-      const filter = {
-        location: this.locationFilter().trim() || undefined,
-        categoryId: this.selectedCategory() || undefined
-      };
-
-      this.marketplaceService.getServices(filter).subscribe({
-        next: (res) => {
-          this.services.set(res.success && res.data ? res.data : []);
-          this.isLoadingMarketplace.set(false);
-        },
-        error: () => {
-          this.services.set([]);
-          this.isLoadingMarketplace.set(false);
-        }
-      });
-
+      // Guests / Admins: Load all public customer jobs with filter
       this.marketplaceService.getJobs(filter).subscribe({
         next: (res) => {
           this.jobs.set(res.success && res.data ? res.data : []);

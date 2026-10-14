@@ -151,11 +151,11 @@
       <div class="marketplace-header-row">
         <div>
           <h2 class="section-heading">
-            {{ auth.isMarketplaceUser() ? 'My Ongoing Jobs' : 'Marketplace Services & Job Requests' }}
+            {{ auth.isMarketplaceUser() ? 'Job-Offer Mode' : 'Marketplace Services & Job Requests' }}
           </h2>
           <p class="section-subheading">
             {{ auth.isMarketplaceUser() 
-              ? 'Manage all your posted and active job demands in one place' 
+              ? 'Browse service provider offerings and track your ongoing job requests' 
               : 'Explore active service offerings from providers and open job requests from customers' }}
           </p>
         </div>
@@ -213,8 +213,66 @@
         </div>
       } @else {
         @if (auth.isMarketplaceUser()) {
-          <!-- For Role ID = 1: ONLY My Ongoing Jobs is visible -->
+          <!-- 1. SERVICE PROVIDER SERVICES (In front of My Ongoing Jobs) -->
           <div class="listings-group">
+            <div class="group-title-row">
+              <div>
+                <h3 class="group-title">🛠️ Service Provider Services</h3>
+                <p class="group-sub">Verified provider services available in the marketplace</p>
+              </div>
+              <a routerLink="/service-mode" class="see-all-link">Offer services in Service Mode →</a>
+            </div>
+
+            @if (filteredServices().length === 0) {
+              <div class="empty-state">
+                <span>No service provider services match the selected category.</span>
+              </div>
+            } @else {
+              <div class="cards-grid">
+                @for (item of filteredServices(); track item.id) {
+                  <div class="card-glass card-hoverable item-card">
+                    <div class="item-card-top">
+                      <span class="badge badge-secondary">{{ item.categoryName }}</span>
+                      @if (item.isVerified) {
+                        <span class="badge badge-verified">✓ Verified</span>
+                      }
+                    </div>
+
+                    <h4 class="item-title">{{ item.variantName }}</h4>
+                    <p class="provider-sub">{{ item.businessName || item.providerName }}</p>
+
+                    @if (item.description) {
+                      <p class="item-desc">{{ item.description }}</p>
+                    }
+
+                    <div class="item-meta-row">
+                      <span class="rating-badge">★ {{ item.ratingAverage.toFixed(1) }} ({{ item.reviewCount }})</span>
+                      <span class="areas-badge">📍 {{ item.serviceAreas.join(', ') || 'Islandwide' }}</span>
+                    </div>
+
+                    <div class="item-card-bottom">
+                      <div class="price-box">
+                        <span class="price-val">Rs. {{ item.startingPrice.toLocaleString() }}</span>
+                        <span class="price-unit">/ {{ item.priceUnit }}</span>
+                      </div>
+                      <button type="button" class="btn btn-outline btn-sm">Contact Provider</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- 2. MY ONGOING JOBS (Directly below Service Provider Services) -->
+          <div class="listings-group mt-5">
+            <div class="group-title-row">
+              <div>
+                <h3 class="group-title">📋 My Ongoing Jobs ({{ filteredJobs().length }})</h3>
+                <p class="group-sub">Your created and active job demands in the marketplace</p>
+              </div>
+              <button type="button" class="see-all-link-btn" (click)="openCreateJobModal()">+ Post a Job →</button>
+            </div>
+
             @if (filteredJobs().length === 0) {
               <div class="empty-state-card card-glass">
                 <div class="empty-state-icon">📋</div>
