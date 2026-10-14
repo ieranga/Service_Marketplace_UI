@@ -96,7 +96,7 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-    toggleVoiceFinder(): void {
+  toggleVoiceFinder(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
     if (this.isVoiceListening()) {
@@ -109,45 +109,78 @@ export class DashboardComponent implements OnInit {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      this.aiError.set('Voice recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.');
       return;
     }
 
     try {
       this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.continuous = false;
-      this.speechRecognition.interimResults = false;
+      this.speechRecognition.interimResults = true;
       this.speechRecognition.lang = 'en-US';
+      this.speechRecognition.maxAlternatives = 1;
+
+      let capturedTranscript = '';
+      let hasSearched = false;
 
       this.speechRecognition.onstart = () => {
         this.isVoiceListening.set(true);
+        this.aiError.set(null);
+        capturedTranscript = '';
+        hasSearched = false;
       };
 
       this.speechRecognition.onresult = (event: any) => {
-        if (event.results && event.results[0] && event.results[0][0]) {
-          const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            const current = this.aiQuery().trim();
-            this.aiQuery.set(current ? `${current} ${transcript}` : transcript);
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript;
+          } else {
+            interimTranscript += result[0].transcript;
           }
+        }
+
+        const currentText = (finalTranscript || interimTranscript).trim();
+        if (currentText) {
+          capturedTranscript = currentText;
+          this.aiQuery.set(currentText);
         }
       };
 
-      this.speechRecognition.onerror = () => {
+      this.speechRecognition.onerror = (event: any) => {
         this.isVoiceListening.set(false);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          this.aiError.set('Microphone access was denied. Please allow microphone permission in your browser settings.');
+        } else if (event.error === 'no-speech') {
+          if (!capturedTranscript.trim()) {
+            this.aiError.set('No speech was detected. Please try speaking your service request again.');
+          }
+        } else if (event.error !== 'aborted') {
+          this.aiError.set('Voice recognition error: ' + (event.error || 'unknown'));
+        }
       };
 
       this.speechRecognition.onend = () => {
         this.isVoiceListening.set(false);
+        const finalQuery = capturedTranscript.trim() || this.aiQuery().trim();
+        if (finalQuery && !hasSearched) {
+          hasSearched = true;
+          // Automatically fire AI search with the user's spoken request
+          this.runAiSearch(finalQuery);
+        }
       };
 
       this.speechRecognition.start();
-    } catch {
+    } catch (err: any) {
       this.isVoiceListening.set(false);
+      this.aiError.set('Could not initialize microphone. Please check your browser audio settings.');
     }
   }
 
-  clearAiSearch(): void {
+      clearAiSearch(): void {
     this.aiResult.set(null);
     this.aiError.set(null);
   }
