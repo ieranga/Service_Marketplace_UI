@@ -85,7 +85,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-.brand-badge {
+.brand-tag {
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -94,6 +94,8 @@
   border: 1px solid rgba(99, 102, 241, 0.4);
   padding: 0.15rem 0.45rem;
   border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
+  display: inline-block;
 }
 
 /* Desktop Nav */
@@ -353,78 +355,12 @@
   color: #fca5a5;
 }
 
-/* Mobile Toggle */
-.hamburger-btn {
-  display: none;
-  background: transparent;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  padding: 0.4rem;
-}
-
-.mobile-drawer {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 1.25rem;
-  background: rgba(9, 13, 22, 0.95);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
-}
-
-.mobile-nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.mobile-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.mobile-user-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-md);
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-}
-
-.mobile-section-title {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: var(--text-subtle);
-  font-weight: 700;
-  margin-top: 0.5rem;
-}
-
-.mobile-auth-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
 /* Responsive Breakpoints */
 @media (max-width: 900px) {
   .navbar-container {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
   .desktop-nav {
     display: none;
@@ -432,13 +368,15 @@
   .view-mode-toggle {
     display: none;
   }
-  .hamburger-btn {
-    display: block;
-  }
-  .mobile-drawer {
-    display: block;
+  .brand-tag {
+    display: none !important;
   }
   .mobile-dropdown-modes {
     display: block;
+  }
+  .profile-dropdown-card {
+    width: calc(100vw - 2rem);
+    max-width: 290px;
+    right: 0;
   }
 }

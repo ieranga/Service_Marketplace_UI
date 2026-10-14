@@ -17,18 +17,12 @@ export class NavbarComponent {
   readonly jobModal = inject(JobModalService);
   private readonly router = inject(Router);
 
-  readonly isMenuOpen = signal<boolean>(false);
   readonly isProfileMenuOpen = signal<boolean>(false);
 
-  toggleMobileMenu(): void {
-    this.isMenuOpen.update(v => !v);
-  }
-
   closeMobileMenu(): void {
-    this.isMenuOpen.set(false);
+    this.closeProfileMenu();
   }
-
-  toggleProfileMenu(): void {
+toggleProfileMenu(): void {
     this.isProfileMenuOpen.update(v => !v);
   }
 
@@ -38,25 +32,21 @@ export class NavbarComponent {
 
   openCreateJobModal(): void {
     this.closeProfileMenu();
-    this.closeMobileMenu();
     this.jobModal.open();
   }
 
   goToJobOfferMode(): void {
     this.closeProfileMenu();
-    this.closeMobileMenu();
     this.router.navigate(['/dashboard']);
   }
 
     goToServiceMode(): void {
     this.closeProfileMenu();
-    this.closeMobileMenu();
     this.router.navigate(['/service-mode']);
   }
 
   logout(): void {
     this.closeProfileMenu();
-    this.closeMobileMenu();
     this.auth.logout();
   }
 
