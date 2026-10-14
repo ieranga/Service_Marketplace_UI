@@ -58,9 +58,9 @@
   <!-- Stats Grid -->
   <div class="stats-row">
     <div class="stat-card card-glass">
-      <span class="stat-label">Active Services</span>
+      <span class="stat-label">Ongoing Services</span>
       <span class="stat-val">{{ myServices().length }}</span>
-      <span class="stat-sub">Offered to marketplace</span>
+      <span class="stat-sub">Active in marketplace</span>
     </div>
     <div class="stat-card card-glass">
       <span class="stat-label">Available Job Requests</span>
@@ -76,26 +76,26 @@
 
   <!-- Main Content Layout -->
   <div class="service-content-grid">
-    <!-- Left Column: My Offered Services -->
+    <!-- Left Column: My Ongoing Services -->
     <div class="services-column">
       <div class="column-header">
         <div>
-          <h2 class="column-title">🛠️ My Service Offerings ({{ myServices().length }})</h2>
-          <p class="column-sub">Services currently published and discoverable by AI and customers</p>
+          <h2 class="column-title">🛠️ My Ongoing Services ({{ myServices().length }})</h2>
+          <p class="column-sub">Active services currently published and discoverable by marketplace customers</p>
         </div>
-        <button type="button" class="btn btn-sm btn-primary" (click)="openCreateModal()">+ Add Service</button>
+        <button type="button" class="btn btn-sm btn-primary" (click)="openCreateModal()">+ Offer New Service</button>
       </div>
 
       @if (isLoading()) {
         <div class="loading-box">
           <div class="spinner"></div>
-          <span>Loading your service offerings...</span>
+          <span>Loading your ongoing services...</span>
         </div>
       } @else if (myServices().length === 0) {
         <div class="empty-card card-glass">
           <div class="empty-icon">📦</div>
-          <h3>No services offered yet</h3>
-          <p>You haven't listed any services in Service Mode. Start offering your expertise today!</p>
+          <h3>No ongoing services offered yet</h3>
+          <p>You haven't listed any ongoing services in Service Mode. Start offering your expertise today!</p>
           <button type="button" class="btn btn-primary btn-sm mt-3" (click)="openCreateModal()">Offer Your First Service</button>
         </div>
       } @else {

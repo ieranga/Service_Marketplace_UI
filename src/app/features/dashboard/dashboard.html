@@ -151,11 +151,11 @@
       <div class="marketplace-header-row">
         <div>
           <h2 class="section-heading">
-            {{ auth.isMarketplaceUser() ? 'My Ongoing Services & Jobs' : 'Marketplace Services & Job Requests' }}
+            {{ auth.isMarketplaceUser() ? 'My Ongoing Jobs' : 'Marketplace Services & Job Requests' }}
           </h2>
           <p class="section-subheading">
             {{ auth.isMarketplaceUser() 
-              ? 'Manage all your created job demands and service offerings in one place' 
+              ? 'Manage all your posted and active job demands in one place' 
               : 'Explore active service offerings from providers and open job requests from customers' }}
           </p>
         </div>
@@ -170,20 +170,20 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
               <span>Service Mode</span>
             </a>
+          } @else {
+            <!-- Filter Tabs for Guests -->
+            <div class="tabs-control">
+              <button type="button" class="tab-btn" [class.active]="activeTab() === 'all'" (click)="setTab('all')">
+                All Activity
+              </button>
+              <button type="button" class="tab-btn" [class.active]="activeTab() === 'services'" (click)="setTab('services')">
+                Services ({{ filteredServices().length }})
+              </button>
+              <button type="button" class="tab-btn" [class.active]="activeTab() === 'jobs'" (click)="setTab('jobs')">
+                Jobs ({{ filteredJobs().length }})
+              </button>
+            </div>
           }
-
-          <!-- Filter Tabs -->
-          <div class="tabs-control">
-            <button type="button" class="tab-btn" [class.active]="activeTab() === 'all'" (click)="setTab('all')">
-              {{ auth.isMarketplaceUser() ? 'All (' + totalCreatedCount() + ')' : 'All Activity' }}
-            </button>
-            <button type="button" class="tab-btn" [class.active]="activeTab() === 'services'" (click)="setTab('services')">
-              {{ auth.isMarketplaceUser() ? 'My Services (' + filteredServices().length + ')' : 'Services (' + filteredServices().length + ')' }}
-            </button>
-            <button type="button" class="tab-btn" [class.active]="activeTab() === 'jobs'" (click)="setTab('jobs')">
-              {{ auth.isMarketplaceUser() ? 'My Jobs (' + filteredJobs().length + ')' : 'Jobs (' + filteredJobs().length + ')' }}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -205,45 +205,74 @@
         }
       </div>
 
-      <!-- Services & Jobs Content -->
+      <!-- Content -->
       @if (isLoadingMarketplace()) {
         <div class="loading-state">
           <div class="spinner"></div>
           <span>Loading listings...</span>
         </div>
       } @else {
-        <!-- Global Empty State when Role ID = 1 has created 0 services and 0 jobs -->
-        @if (auth.isMarketplaceUser() && activeTab() === 'all' && filteredServices().length === 0 && filteredJobs().length === 0) {
-          <div class="empty-state-card card-glass">
-            <div class="empty-state-icon">📋</div>
-            <h4 class="empty-state-title">No ongoing jobs or services</h4>
-            <p class="empty-state-desc">You have not created any jobs or service offerings yet. You can post a custom job request directly, or enter Service Mode to offer services.</p>
-            <div class="empty-state-actions">
-              <button type="button" class="btn btn-primary btn-sm" (click)="openCreateJobModal()">Post a Job Request</button>
-              <a routerLink="/service-mode" class="btn btn-outline btn-sm">Enter Service Mode</a>
-            </div>
+        @if (auth.isMarketplaceUser()) {
+          <!-- For Role ID = 1: ONLY My Ongoing Jobs is visible -->
+          <div class="listings-group">
+            @if (filteredJobs().length === 0) {
+              <div class="empty-state-card card-glass">
+                <div class="empty-state-icon">📋</div>
+                <h4 class="empty-state-title">No ongoing jobs posted yet</h4>
+                <p class="empty-state-desc">You have not posted any job requests yet. Need a service? Create your first job demand!</p>
+                <div class="empty-state-actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="openCreateJobModal()">+ Post a Job Request</button>
+                  <a routerLink="/service-mode" class="btn btn-outline btn-sm">Enter Service Mode</a>
+                </div>
+              </div>
+            } @else {
+              <div class="cards-grid">
+                @for (job of filteredJobs(); track job.id) {
+                  <div class="card-glass card-hoverable item-card job-card">
+                    <div class="item-card-top">
+                      <span class="badge badge-warning">Status: {{ job.status }}</span>
+                      @if (job.urgencyOrPreferredDate) {
+                        <span class="urgency-badge">⚡ {{ job.urgencyOrPreferredDate }}</span>
+                      }
+                    </div>
+
+                    <h4 class="item-title">{{ job.title }}</h4>
+                    <p class="provider-sub">Posted by {{ job.receiverName }}</p>
+
+                    @if (job.description) {
+                      <p class="item-desc">{{ job.description }}</p>
+                    }
+
+                    <div class="item-meta-row">
+                      @if (job.jobAreas.length > 0) {
+                        <span class="areas-badge">📍 {{ job.jobAreas[0].cityName }}</span>
+                      }
+                      <span class="payment-badge">💳 {{ job.paymentMethod }}</span>
+                    </div>
+
+                    <div class="item-card-bottom">
+                      <div class="budget-box">
+                        <span class="budget-label">Budget</span>
+                        <span class="budget-val">Rs. {{ job.budget ? job.budget.toLocaleString() : 'Negotiable' }}</span>
+                      </div>
+                      <button type="button" class="btn btn-delete-sm" (click)="deleteJob(job.id)">Cancel Job</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           </div>
         } @else {
-          <!-- SERVICES GRID -->
+          <!-- Guest / Public view: Services & Jobs with tabs -->
           @if (activeTab() === 'all' || activeTab() === 'services') {
             <div class="listings-group">
               <div class="group-title-row">
-                <h3 class="group-title">
-                  {{ auth.isMarketplaceUser() ? '🛠️ My Services' : '🛠️ Services Offered by Providers' }}
-                </h3>
-                @if (auth.isMarketplaceUser()) {
-                  <a routerLink="/service-mode" class="see-all-link">Manage in Service Mode →</a>
-                }
+                <h3 class="group-title">🛠️ Services Offered by Providers</h3>
               </div>
 
               @if (filteredServices().length === 0) {
                 <div class="empty-state">
-                  @if (auth.isMarketplaceUser()) {
-                    <span>No ongoing services created yet.</span>
-                    <a routerLink="/service-mode" class="empty-action-link">Open Service Mode to offer services →</a>
-                  } @else {
-                    <span>No active provider services match the filter.</span>
-                  }
+                  <span>No active provider services match the filter.</span>
                 </div>
               } @else {
                 <div class="cards-grid">
@@ -273,11 +302,7 @@
                           <span class="price-val">Rs. {{ item.startingPrice.toLocaleString() }}</span>
                           <span class="price-unit">/ {{ item.priceUnit }}</span>
                         </div>
-                        @if (auth.isMarketplaceUser()) {
-                          <a routerLink="/service-mode" class="btn btn-outline btn-sm">Manage</a>
-                        } @else {
-                          <button type="button" class="btn btn-outline btn-sm">Contact</button>
-                        }
+                        <button type="button" class="btn btn-outline btn-sm">Contact</button>
                       </div>
                     </div>
                   }
@@ -286,26 +311,15 @@
             </div>
           }
 
-          <!-- JOBS GRID -->
           @if (activeTab() === 'all' || activeTab() === 'jobs') {
             <div class="listings-group mt-5">
               <div class="group-title-row">
-                <h3 class="group-title">
-                  {{ auth.isMarketplaceUser() ? '📋 My Posted Job Requests' : '📋 Customer Job Requests' }}
-                </h3>
-                @if (auth.isMarketplaceUser()) {
-                  <button type="button" class="see-all-link-btn" (click)="openCreateJobModal()">+ Post a Job →</button>
-                }
+                <h3 class="group-title">📋 Customer Job Requests</h3>
               </div>
 
               @if (filteredJobs().length === 0) {
                 <div class="empty-state">
-                  @if (auth.isMarketplaceUser()) {
-                    <span>No ongoing job requests created yet.</span>
-                    <button type="button" class="empty-action-link-btn" (click)="openCreateJobModal()">Post a Job Request now →</button>
-                  } @else {
-                    <span>No open customer jobs match the filter.</span>
-                  }
+                  <span>No open customer jobs match the filter.</span>
                 </div>
               } @else {
                 <div class="cards-grid">
@@ -337,11 +351,7 @@
                           <span class="budget-label">Budget</span>
                           <span class="budget-val">Rs. {{ job.budget ? job.budget.toLocaleString() : 'Negotiable' }}</span>
                         </div>
-                        @if (auth.isMarketplaceUser()) {
-                          <button type="button" class="btn btn-delete-sm" (click)="deleteJob(job.id)">Cancel Job</button>
-                        } @else {
-                          <button type="button" class="btn btn-primary btn-sm">Send Proposal</button>
-                        }
+                        <button type="button" class="btn btn-primary btn-sm">Send Proposal</button>
                       </div>
                     </div>
                   }

@@ -42,11 +42,6 @@ export class RegisterComponent {
       return;
     }
 
-    if (this.password().length < 6) {
-      this.errorMessage.set('Password must be at least 6 characters long.');
-      return;
-    }
-
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
