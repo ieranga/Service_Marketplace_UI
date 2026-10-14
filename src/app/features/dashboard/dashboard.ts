@@ -1,7 +1,6 @@
 import { Component, inject, OnInit, signal, computed, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { AiService } from '../../core/services/ai.service';
 import { MarketplaceService } from '../../core/services/marketplace.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -12,7 +11,7 @@ import { ProviderServiceListing, UserJob, Category, ServiceVariant } from '../..
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
@@ -70,6 +69,9 @@ export class DashboardComponent implements OnInit {
   });
 
   readonly filteredJobs = computed(() => {
+    if (this.auth.isMarketplaceUser()) {
+      return this.jobs();
+    }
     const cat = this.selectedCategory();
     const list = this.jobs();
     if (!cat) return list;

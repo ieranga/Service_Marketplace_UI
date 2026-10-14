@@ -161,16 +161,7 @@
         </div>
 
         <div class="header-right-actions">
-          @if (auth.isMarketplaceUser()) {
-            <button type="button" class="btn btn-primary btn-sm" (click)="openCreateJobModal()">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Post a Job Request</span>
-            </button>
-            <a routerLink="/service-mode" class="btn btn-outline btn-sm">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-              <span>Service Mode</span>
-            </a>
-          } @else {
+          @if (!auth.isMarketplaceUser()) {
             <!-- Filter Tabs for Guests -->
             <div class="tabs-control">
               <button type="button" class="tab-btn" [class.active]="activeTab() === 'all'" (click)="setTab('all')">
@@ -187,23 +178,25 @@
         </div>
       </div>
 
-      <!-- Category Filter Chips -->
-      <div class="category-filters-row">
-        <button type="button" 
-                class="cat-chip" 
-                [class.active]="selectedCategory() === null" 
-                (click)="selectCategory(null)">
-          All Categories
-        </button>
-        @for (cat of categories(); track cat.id) {
+      @if (!auth.isMarketplaceUser()) {
+        <!-- Category Filter Chips for Guests -->
+        <div class="category-filters-row">
           <button type="button" 
                   class="cat-chip" 
-                  [class.active]="selectedCategory() === cat.id" 
-                  (click)="selectCategory(cat.id)">
-            {{ cat.name }}
+                  [class.active]="selectedCategory() === null" 
+                  (click)="selectCategory(null)">
+            All Categories
           </button>
-        }
-      </div>
+          @for (cat of categories(); track cat.id) {
+            <button type="button" 
+                    class="cat-chip" 
+                    [class.active]="selectedCategory() === cat.id" 
+                    (click)="selectCategory(cat.id)">
+              {{ cat.name }}
+            </button>
+          }
+        </div>
+      }
 
       <!-- Content -->
       @if (isLoadingMarketplace()) {
@@ -213,112 +206,131 @@
         </div>
       } @else {
         @if (auth.isMarketplaceUser()) {
-          <!-- 1. SERVICE PROVIDER SERVICES (In front of My Ongoing Jobs) -->
-          <div class="listings-group">
-            <div class="group-title-row">
-              <div>
-                <h3 class="group-title">🛠️ Service Provider Services</h3>
-                <p class="group-sub">Verified provider services available in the marketplace</p>
-              </div>
-              <a routerLink="/service-mode" class="see-all-link">Offer services in Service Mode →</a>
-            </div>
-
-            @if (filteredServices().length === 0) {
-              <div class="empty-state">
-                <span>No service provider services match the selected category.</span>
-              </div>
-            } @else {
-              <div class="cards-grid">
-                @for (item of filteredServices(); track item.id) {
-                  <div class="card-glass card-hoverable item-card">
-                    <div class="item-card-top">
-                      <span class="badge badge-secondary">{{ item.categoryName }}</span>
-                      @if (item.isVerified) {
-                        <span class="badge badge-verified">✓ Verified</span>
-                      }
-                    </div>
-
-                    <h4 class="item-title">{{ item.variantName }}</h4>
-                    <p class="provider-sub">{{ item.businessName || item.providerName }}</p>
-
-                    @if (item.description) {
-                      <p class="item-desc">{{ item.description }}</p>
-                    }
-
-                    <div class="item-meta-row">
-                      <span class="rating-badge">★ {{ item.ratingAverage.toFixed(1) }} ({{ item.reviewCount }})</span>
-                      <span class="areas-badge">📍 {{ item.serviceAreas.join(', ') || 'Islandwide' }}</span>
-                    </div>
-
-                    <div class="item-card-bottom">
-                      <div class="price-box">
-                        <span class="price-val">Rs. {{ item.startingPrice.toLocaleString() }}</span>
-                        <span class="price-unit">/ {{ item.priceUnit }}</span>
-                      </div>
-                      <button type="button" class="btn btn-outline btn-sm">Contact Provider</button>
-                    </div>
+          <!-- Left and Right Split Layout for Job-Offer Mode -->
+          <div class="marketplace-split-layout">
+            <!-- Left Side: Service Provider Services -->
+            <div class="split-col split-col-services">
+              <div class="col-header-box">
+                <div class="group-title-row">
+                  <div>
+                    <h3 class="group-title">🛠️ Service Provider Services</h3>
+                    <p class="group-sub">Verified provider services available in the marketplace</p>
                   </div>
-                }
-              </div>
-            }
-          </div>
+                </div>
 
-          <!-- 2. MY ONGOING JOBS (Directly below Service Provider Services) -->
-          <div class="listings-group mt-5">
-            <div class="group-title-row">
-              <div>
-                <h3 class="group-title">📋 My Ongoing Jobs ({{ filteredJobs().length }})</h3>
-                <p class="group-sub">Your created and active job demands in the marketplace</p>
-              </div>
-              <button type="button" class="see-all-link-btn" (click)="openCreateJobModal()">+ Post a Job →</button>
-            </div>
-
-            @if (filteredJobs().length === 0) {
-              <div class="empty-state-card card-glass">
-                <div class="empty-state-icon">📋</div>
-                <h4 class="empty-state-title">No ongoing jobs posted yet</h4>
-                <p class="empty-state-desc">You have not posted any job requests yet. Need a service? Create your first job demand!</p>
-                <div class="empty-state-actions">
-                  <button type="button" class="btn btn-primary btn-sm" (click)="openCreateJobModal()">+ Post a Job Request</button>
-                  <a routerLink="/service-mode" class="btn btn-outline btn-sm">Enter Service Mode</a>
+                <!-- Category filters applied specifically on top of Service Provider Services -->
+                <div class="category-filters-row sub-category-filters">
+                  <button type="button" 
+                          class="cat-chip" 
+                          [class.active]="selectedCategory() === null" 
+                          (click)="selectCategory(null)">
+                    All Categories
+                  </button>
+                  @for (cat of categories(); track cat.id) {
+                    <button type="button" 
+                            class="cat-chip" 
+                            [class.active]="selectedCategory() === cat.id" 
+                            (click)="selectCategory(cat.id)">
+                      {{ cat.name }}
+                    </button>
+                  }
                 </div>
               </div>
-            } @else {
-              <div class="cards-grid">
-                @for (job of filteredJobs(); track job.id) {
-                  <div class="card-glass card-hoverable item-card job-card">
-                    <div class="item-card-top">
-                      <span class="badge badge-warning">Status: {{ job.status }}</span>
-                      @if (job.urgencyOrPreferredDate) {
-                        <span class="urgency-badge">⚡ {{ job.urgencyOrPreferredDate }}</span>
-                      }
-                    </div>
 
-                    <h4 class="item-title">{{ job.title }}</h4>
-                    <p class="provider-sub">Posted by {{ job.receiverName }}</p>
-
-                    @if (job.description) {
-                      <p class="item-desc">{{ job.description }}</p>
-                    }
-
-                    <div class="item-meta-row">
-                      @if (job.jobAreas.length > 0) {
-                        <span class="areas-badge">📍 {{ job.jobAreas[0].cityName }}</span>
-                      }
-                      <span class="payment-badge">💳 {{ job.paymentMethod }}</span>
-                    </div>
-
-                    <div class="item-card-bottom">
-                      <div class="budget-box">
-                        <span class="budget-label">Budget</span>
-                        <span class="budget-val">Rs. {{ job.budget ? job.budget.toLocaleString() : 'Negotiable' }}</span>
+              @if (filteredServices().length === 0) {
+                <div class="empty-state">
+                  <span>No service provider services match the selected category.</span>
+                </div>
+              } @else {
+                <div class="column-cards-grid">
+                  @for (item of filteredServices(); track item.id) {
+                    <div class="card-glass card-hoverable item-card">
+                      <div class="item-card-top">
+                        <span class="badge badge-secondary">{{ item.categoryName }}</span>
+                        @if (item.isVerified) {
+                          <span class="badge badge-verified">✓ Verified</span>
+                        }
                       </div>
-                      <button type="button" class="btn btn-delete-sm" (click)="deleteJob(job.id)">Cancel Job</button>
+
+                      <h4 class="item-title">{{ item.variantName }}</h4>
+                      <p class="provider-sub">{{ item.businessName || item.providerName }}</p>
+
+                      @if (item.description) {
+                        <p class="item-desc">{{ item.description }}</p>
+                      }
+
+                      <div class="item-meta-row">
+                        <span class="rating-badge">★ {{ item.ratingAverage.toFixed(1) }} ({{ item.reviewCount }})</span>
+                        <span class="areas-badge">📍 {{ item.serviceAreas.join(', ') || 'Islandwide' }}</span>
+                      </div>
+
+                      <div class="item-card-bottom">
+                        <div class="price-box">
+                          <span class="price-val">Rs. {{ item.startingPrice.toLocaleString() }}</span>
+                          <span class="price-unit">/ {{ item.priceUnit }}</span>
+                        </div>
+                        <button type="button" class="btn btn-outline btn-sm">Contact Provider</button>
+                      </div>
                     </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Right Side: My Ongoing Jobs -->
+            <div class="split-col split-col-jobs">
+              <div class="col-header-box">
+                <div class="group-title-row">
+                  <div>
+                    <h3 class="group-title">📋 My Ongoing Jobs ({{ filteredJobs().length }})</h3>
+                    <p class="group-sub">Your created and active job demands in the marketplace</p>
                   </div>
-                }
+                </div>
               </div>
-            }
+
+              @if (filteredJobs().length === 0) {
+                <div class="empty-state-card card-glass">
+                  <div class="empty-state-icon">📋</div>
+                  <h4 class="empty-state-title">No ongoing jobs posted yet</h4>
+                  <p class="empty-state-desc">You have not posted any job requests yet.</p>
+                </div>
+              } @else {
+                <div class="column-cards-grid">
+                  @for (job of filteredJobs(); track job.id) {
+                    <div class="card-glass card-hoverable item-card job-card">
+                      <div class="item-card-top">
+                        <span class="badge badge-warning">Status: {{ job.status }}</span>
+                        @if (job.urgencyOrPreferredDate) {
+                          <span class="urgency-badge">⚡ {{ job.urgencyOrPreferredDate }}</span>
+                        }
+                      </div>
+
+                      <h4 class="item-title">{{ job.title }}</h4>
+                      <p class="provider-sub">Posted by {{ job.receiverName }}</p>
+
+                      @if (job.description) {
+                        <p class="item-desc">{{ job.description }}</p>
+                      }
+
+                      <div class="item-meta-row">
+                        @if (job.jobAreas.length > 0) {
+                          <span class="areas-badge">📍 {{ job.jobAreas[0].cityName }}</span>
+                        }
+                        <span class="payment-badge">💳 {{ job.paymentMethod }}</span>
+                      </div>
+
+                      <div class="item-card-bottom">
+                        <div class="budget-box">
+                          <span class="budget-label">Budget</span>
+                          <span class="budget-val">Rs. {{ job.budget ? job.budget.toLocaleString() : 'Negotiable' }}</span>
+                        </div>
+                        <button type="button" class="btn btn-delete-sm" (click)="deleteJob(job.id)">Cancel Job</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
           </div>
         } @else {
           <!-- Guest / Public view: Services & Jobs with tabs -->
