@@ -13,6 +13,6 @@ export class AiService {
   private readonly baseUrl = environment.apiUrl;
 
   discoverServices(request: ServiceDiscoveryRequest): Observable<ApiResponse<ServiceDiscoveryResult>> {
-    return this.http.post<ApiResponse<ServiceDiscoveryResult>>(this.baseUrl + '/ai/service-discovery', request);
+    return this.http.post<ApiResponse<ServiceDiscoveryResult>>(this.baseUrl + '/ai/discover', request);
   }
 }

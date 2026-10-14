@@ -23,8 +23,8 @@ export class DashboardComponent implements OnInit {
   readonly auth = inject(AuthService);
 
   // AI Search state
-  aiQuery = signal<string>('I need someone to wash my car at my home in Negombo this weekend');
-  aiLocation = signal<string>('Negombo');
+  aiQuery = signal<string>('give me computer repair near Rathnapura');
+  aiLocation = signal<string>('');
   aiMaxBudget = signal<number | null>(null);
   isVoiceListening = signal<boolean>(false);
   private speechRecognition: any = null;
@@ -167,7 +167,8 @@ export class DashboardComponent implements OnInit {
 
     this.aiService.discoverServices({
       query,
-      preferredLocation: this.aiLocation().trim() || undefined
+      preferredLocation: this.aiLocation().trim() || undefined,
+        maxBudget: this.aiMaxBudget() ? Number(this.aiMaxBudget()) : undefined
     }).subscribe({
       next: (res) => {
         this.isAiSearching.set(false);

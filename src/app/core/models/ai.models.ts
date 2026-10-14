@@ -1,8 +1,9 @@
-﻿export interface ServiceDiscoveryRequest {
+export interface ServiceDiscoveryRequest {
   query: string;
   userLatitude?: number;
   userLongitude?: number;
   preferredLocation?: string;
+  maxBudget?: number;
 }
 
 export interface ExtractedRequirements {
