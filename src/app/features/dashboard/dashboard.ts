@@ -25,6 +25,7 @@ export class DashboardComponent implements OnInit {
   // AI Search state
   aiQuery = signal<string>('I need someone to wash my car at my home in Negombo this weekend');
   aiLocation = signal<string>('Negombo');
+  aiMaxBudget = signal<number | null>(null);
   isAiSearching = signal<boolean>(false);
   aiResult = signal<ServiceDiscoveryResult | null>(null);
   aiError = signal<string | null>(null);
@@ -93,9 +94,19 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  clearAiSearch(): void {
+    this.aiResult.set(null);
+    this.aiError.set(null);
+  }
+
   runAiSearch(customQuery?: string): void {
-    const query = customQuery || this.aiQuery().trim();
+    let query = customQuery || this.aiQuery().trim();
     if (!query) return;
+
+    const budget = this.aiMaxBudget();
+    if (budget && !query.toLowerCase().includes('rs') && !query.toLowerCase().includes('lkr') && !query.toLowerCase().includes('budget')) {
+      query += ` with budget Rs. ${budget}`;
+    }
 
     this.aiQuery.set(query);
     this.isAiSearching.set(true);
