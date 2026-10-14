@@ -654,10 +654,15 @@
       <div class="modal-card card-glass voice-modal-card" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <div class="modal-title-with-badge">
-            <h2 class="modal-title">ðŸŽ™ï¸ AI Voice Job Creator</h2>
+            <h2 class="modal-title modal-title-flex">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="voice-title-icon"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span>AI Voice Job Creator</span>
+            </h2>
             <span class="badge-ai-accent">Voice to Job</span>
           </div>
-          <button type="button" class="modal-close-btn" (click)="closeVoiceJobModal()">âœ•</button>
+          <button type="button" class="modal-close-btn" (click)="closeVoiceJobModal()" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
         @if (voiceJobFeedback()) {
@@ -698,7 +703,8 @@
               placeholder="e.g. I need an electrician in Colombo tomorrow with budget 6000 cash"
             ></textarea>
             <div class="voice-helper-tip">
-              ðŸ’¡ <em>Parameters below were auto-filled from your speech. Any missing parameters use system defaults.</em>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tip-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>Parameters below were auto-filled from your speech. Any missing parameters use system defaults.</span>
             </div>
           </div>
 
@@ -734,7 +740,7 @@
                 <option [ngValue]="null">Select matching service variant (Optional)...</option>
                 @for (variant of availableVariants(); track variant.id) {
                   <option [ngValue]="variant.id">
-                    {{ variant.categoryName }} â†’ {{ variant.serviceName }} â†’ {{ variant.name }}
+                    {{ variant.categoryName }} &rarr; {{ variant.serviceName }} &rarr; {{ variant.name }}
                   </option>
                 }
               </select>

@@ -1200,3 +1200,17 @@
   box-shadow: 0 6px 20px rgba(124, 58, 237, 0.55);
   filter: brightness(1.1);
 }
+
+.modal-title-flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.voice-title-icon {
+  color: #c084fc;
+  flex-shrink: 0;
+}
+.tip-icon {
+  color: #a855f7;
+  flex-shrink: 0;
+}
