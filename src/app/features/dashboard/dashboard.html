@@ -46,15 +46,31 @@
 
           <form (ngSubmit)="runAiSearch()" class="advanced-search-form">
             <div class="prompt-box">
-              <textarea 
-                class="prompt-textarea" 
-                rows="3" 
-                placeholder="Describe any service or task in detail with a prompt (e.g. I need an experienced car detailer to do interior shampooing, steam cleaning, and exterior waxing at my home)..." 
-                [ngModel]="aiQuery()" 
-                (ngModelChange)="aiQuery.set($event)" 
-                name="aiQuery" 
-                required
-              ></textarea>
+              <div class="prompt-textarea-wrapper">
+                <textarea 
+                  class="prompt-textarea" 
+                  rows="3" 
+                  placeholder="Describe any service or task in detail with a prompt (e.g. I need an experienced car detailer to do interior shampooing, steam cleaning, and exterior waxing at my home)..." 
+                  [ngModel]="aiQuery()" 
+                  (ngModelChange)="aiQuery.set($event)" 
+                  name="aiQuery" 
+                  required
+                ></textarea>
+                <button 
+                  type="button" 
+                  class="prompt-textarea-mic-btn" 
+                  (click)="toggleVoiceFinder()" 
+                  [class.listening]="isVoiceListening()" 
+                  [title]="isVoiceListening() ? 'Stop voice listening' : 'Speak your prompt with AI Voice Finder'"
+                  aria-label="AI Voice dictation"
+                >
+                  <svg class="voice-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                    <line x1="12" y1="18" x2="12" y2="22"/>
+                  </svg>
+                </button>
+              </div>
 
               <!-- Inside text area container: Location tag, Price tag, and Submit action -->
               <div class="prompt-toolbar">
@@ -97,21 +113,29 @@
 
                 <div class="prompt-action-btns">
                   <!-- AI Voice Finder Button -->
-                  <button type="button" class="btn btn-voice-finder" (click)="toggleVoiceFinder()" [class.listening]="isVoiceListening()" [title]="isVoiceListening() ? 'Click to stop listening' : 'Click to speak with AI voice finder'">
+                  <button 
+                    type="button" 
+                    id="ai-voice-finder-btn"
+                    class="btn btn-voice-finder" 
+                    (click)="toggleVoiceFinder()" 
+                    [class.listening]="isVoiceListening()" 
+                    [title]="isVoiceListening() ? 'Click to stop listening' : 'Click to speak with AI voice finder'"
+                    aria-label="AI Voice Finder"
+                  >
                     @if (isVoiceListening()) {
                       <span class="voice-pulse-ring"></span>
-                      <svg class="voice-icon listening-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <svg class="voice-icon listening-icon" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                       </svg>
-                      <span>Listening...</span>
+                      <span class="voice-btn-text">Listening...</span>
                     } @else {
-                      <svg class="voice-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg class="voice-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                         <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
                         <line x1="12" y1="18" x2="12" y2="22"/>
                       </svg>
-                      <span>AI Voice Finder</span>
+                      <span class="voice-btn-text">AI Voice Finder</span>
                     }
                   </button>
 
