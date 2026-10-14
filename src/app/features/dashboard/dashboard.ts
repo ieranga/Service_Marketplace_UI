@@ -56,6 +56,25 @@ export class DashboardComponent implements OnInit {
   newJobPaymentMethod = signal<string>('Cash');
   newJobDescription = signal<string>('');
 
+  // Voice Job Creator State
+  showVoiceJobModal = signal<boolean>(false);
+  isVoiceJobListening = signal<boolean>(false);
+  voiceJobPrompt = signal<string>('');
+  voiceJobTitle = signal<string>('');
+  voiceJobVariantId = signal<number | null>(null);
+  voiceJobBudget = signal<number>(5000);
+  voiceJobUrgency = signal<string>('This Weekend');
+  voiceJobCity = signal<string>('Colombo');
+  voiceJobAddress = signal<string>('Client Location');
+  voiceJobPaymentMethod = signal<string>('Cash');
+  voiceJobFeedback = signal<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  voicePromptHasBudget = signal<boolean>(false);
+  voicePromptHasCity = signal<boolean>(false);
+  voicePromptHasUrgency = signal<boolean>(false);
+
+  private voiceJobSpeechRecognition: any = null;
+
   // Sample prompt chips
   readonly samplePrompts = [
     'Wash my car at home in Negombo this weekend',
@@ -365,6 +384,294 @@ export class DashboardComponent implements OnInit {
         }
       },
       error: () => alert('Failed to delete job.')
+    });
+  }
+
+  toggleVoiceJobCreator(insideModal = false): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    if (this.isVoiceJobListening()) {
+      if (this.voiceJobSpeechRecognition) {
+        try { this.voiceJobSpeechRecognition.stop(); } catch {}
+      }
+      this.isVoiceJobListening.set(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      if (!insideModal) {
+        this.parseVoicePromptAndApplyDefaults('');
+        this.showVoiceJobModal.set(true);
+      }
+      this.voiceJobFeedback.set({
+        type: 'error',
+        text: 'Voice recognition is not supported in this browser. You can type or edit your request manually.'
+      });
+      return;
+    }
+
+    try {
+      this.voiceJobSpeechRecognition = new SpeechRecognition();
+      this.voiceJobSpeechRecognition.continuous = false;
+      this.voiceJobSpeechRecognition.interimResults = true;
+      this.voiceJobSpeechRecognition.lang = 'en-US';
+      this.voiceJobSpeechRecognition.maxAlternatives = 1;
+
+      let capturedTranscript = '';
+
+      this.voiceJobSpeechRecognition.onstart = () => {
+        this.isVoiceJobListening.set(true);
+        this.voiceJobFeedback.set(null);
+        capturedTranscript = '';
+      };
+
+      this.voiceJobSpeechRecognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript;
+          } else {
+            interimTranscript += result[0].transcript;
+          }
+        }
+
+        const currentText = (finalTranscript || interimTranscript).trim();
+        if (currentText) {
+          capturedTranscript = currentText;
+          this.voiceJobPrompt.set(currentText);
+        }
+      };
+
+      this.voiceJobSpeechRecognition.onerror = (event: any) => {
+        this.isVoiceJobListening.set(false);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          this.voiceJobFeedback.set({
+            type: 'error',
+            text: 'Microphone access was denied. Please allow microphone permission in your browser settings.'
+          });
+          if (!insideModal) this.showVoiceJobModal.set(true);
+        } else if (event.error === 'no-speech') {
+          if (!capturedTranscript.trim()) {
+            this.voiceJobFeedback.set({
+              type: 'error',
+              text: 'No speech was detected. Please try speaking your job request again.'
+            });
+            if (!insideModal) this.showVoiceJobModal.set(true);
+          }
+        } else if (event.error !== 'aborted') {
+          this.voiceJobFeedback.set({
+            type: 'error',
+            text: 'Voice recognition error: ' + (event.error || 'unknown')
+          });
+          if (!insideModal) this.showVoiceJobModal.set(true);
+        }
+      };
+
+      this.voiceJobSpeechRecognition.onend = () => {
+        this.isVoiceJobListening.set(false);
+        const promptText = capturedTranscript.trim() || this.voiceJobPrompt().trim();
+        this.parseVoicePromptAndApplyDefaults(promptText);
+        this.showVoiceJobModal.set(true);
+      };
+
+      this.voiceJobSpeechRecognition.start();
+    } catch (err: any) {
+      this.isVoiceJobListening.set(false);
+      this.voiceJobFeedback.set({
+        type: 'error',
+        text: 'Could not initialize microphone. Please check your browser audio settings.'
+      });
+      if (!insideModal) this.showVoiceJobModal.set(true);
+    }
+  }
+
+  closeVoiceJobModal(): void {
+    if (this.isVoiceJobListening()) {
+      if (this.voiceJobSpeechRecognition) {
+        try { this.voiceJobSpeechRecognition.stop(); } catch {}
+      }
+      this.isVoiceJobListening.set(false);
+    }
+    this.showVoiceJobModal.set(false);
+  }
+
+  onVoicePromptEdited(newPrompt: string): void {
+    this.voiceJobPrompt.set(newPrompt);
+    if (!this.voiceJobTitle() || this.voiceJobTitle() === 'General Service Request' || this.voiceJobTitle() === 'Service Request' || this.voiceJobTitle().endsWith('Request')) {
+      const words = newPrompt.trim().split(/\s+/).slice(0, 6).join(' ');
+      if (words) {
+        this.voiceJobTitle.set(words.charAt(0).toUpperCase() + words.slice(1));
+      }
+    }
+  }
+
+  parseVoicePromptAndApplyDefaults(prompt: string): void {
+    const cleanPrompt = (prompt || '').trim();
+    this.voiceJobPrompt.set(cleanPrompt);
+
+    // 1. Budget extraction
+    let detectedBudget: number | null = null;
+    const budgetMatch = cleanPrompt.match(/(?:rs\.?|lkr|budget|price|cost|around|fee)\s*[:=]?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,7})\s*(?:rs\.?|lkr|rupees)?/i) ||
+                        cleanPrompt.match(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,7})\s*(?:rs\.?|lkr|rupees)/i);
+    if (budgetMatch && budgetMatch[1]) {
+      const parsed = parseInt(budgetMatch[1].replace(/,/g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        detectedBudget = parsed;
+      }
+    }
+
+    if (detectedBudget) {
+      this.voiceJobBudget.set(detectedBudget);
+      this.voicePromptHasBudget.set(true);
+    } else {
+      this.voiceJobBudget.set(5000); // Default: Rs. 5,000
+      this.voicePromptHasBudget.set(false);
+    }
+
+    // 2. City extraction
+    const sriLankanCities = [
+      'Colombo', 'Rathnapura', 'Ratnapura', 'Kandy', 'Galle', 'Negombo', 'Matara', 'Gampaha',
+      'Kurunegala', 'Kalutara', 'Jaffna', 'Batticaloa', 'Anuradhapura', 'Badulla',
+      'Trincomalee', 'Puttalam', 'Nuwara Eliya', 'Kegalle', 'Polonnaruwa', 'Hambantota',
+      'Panadura', 'Dehiwala', 'Moratuwa', 'Maharagama', 'Kaduwela', 'Malabe', 'Mount Lavinia'
+    ];
+
+    let detectedCity: string | null = null;
+    const lowerPrompt = cleanPrompt.toLowerCase();
+    for (const city of sriLankanCities) {
+      const cityPattern = new RegExp(`\\b${city.toLowerCase()}\\b`, 'i');
+      if (cityPattern.test(lowerPrompt)) {
+        detectedCity = city.toLowerCase() === 'ratnapura' ? 'Rathnapura' : city;
+        break;
+      }
+    }
+
+    if (detectedCity) {
+      this.voiceJobCity.set(detectedCity);
+      this.voicePromptHasCity.set(true);
+    } else {
+      const userCity = this.auth.currentUser()?.city?.trim();
+      this.voiceJobCity.set(userCity || 'Colombo'); // Default: user's city or Colombo
+      this.voicePromptHasCity.set(false);
+    }
+
+    // 3. Urgency extraction
+    let detectedUrgency: string | null = null;
+    if (/\b(today|urgent|immediate|emergency|asap|now|tomorrow)\b/i.test(cleanPrompt)) {
+      detectedUrgency = 'Urgent - Today';
+    } else if (/\b(weekend|saturday|sunday)\b/i.test(cleanPrompt)) {
+      detectedUrgency = 'This Weekend';
+    } else if (/\b(week|next week|few days)\b/i.test(cleanPrompt)) {
+      detectedUrgency = 'Within a Week';
+    } else if (/\b(flexible|anytime|whenever)\b/i.test(cleanPrompt)) {
+      detectedUrgency = 'Flexible';
+    }
+
+    if (detectedUrgency) {
+      this.voiceJobUrgency.set(detectedUrgency);
+      this.voicePromptHasUrgency.set(true);
+    } else {
+      this.voiceJobUrgency.set('This Weekend'); // Default: This Weekend
+      this.voicePromptHasUrgency.set(false);
+    }
+
+    // 4. Payment method
+    if (/\b(card|online|transfer)\b/i.test(cleanPrompt)) {
+      this.voiceJobPaymentMethod.set(/\btransfer\b/i.test(cleanPrompt) ? 'Bank Transfer' : 'Online Payment');
+    } else {
+      this.voiceJobPaymentMethod.set('Cash'); // Default: Cash
+    }
+
+    // 5. Address / Landmark
+    this.voiceJobAddress.set('Client Location'); // Default: Client Location
+
+    // 6. Matching Service Variant
+    let matchedVariantId: number | null = null;
+    let matchedVariantName = '';
+    const variants = this.availableVariants();
+    let bestScore = 0;
+
+    for (const v of variants) {
+      const vName = (v.name || '').toLowerCase();
+      const sName = (v.serviceName || '').toLowerCase();
+      const cName = (v.categoryName || '').toLowerCase();
+
+      let score = 0;
+      if (vName && lowerPrompt.includes(vName)) score += 4;
+      if (sName && lowerPrompt.includes(sName)) score += 3;
+      if (cName && lowerPrompt.includes(cName)) score += 1;
+
+      const words = `${vName} ${sName}`.split(/\s+/).filter(w => w.length > 3);
+      for (const w of words) {
+        if (lowerPrompt.includes(w)) score += 1;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        matchedVariantId = v.id;
+        matchedVariantName = `${v.serviceName || v.name}`;
+      }
+    }
+
+    this.voiceJobVariantId.set(matchedVariantId);
+
+    // 7. Title
+    if (matchedVariantName) {
+      this.voiceJobTitle.set(`${matchedVariantName} Request`);
+    } else if (cleanPrompt) {
+      const words = cleanPrompt.split(/\s+/).slice(0, 6).join(' ');
+      this.voiceJobTitle.set(words.charAt(0).toUpperCase() + words.slice(1));
+    } else {
+      this.voiceJobTitle.set('General Service Request');
+    }
+  }
+
+  confirmAndCreateJob(): void {
+    const title = this.voiceJobTitle().trim() || 'Service Request';
+    const budget = this.voiceJobBudget() > 0 ? this.voiceJobBudget() : 5000;
+    const city = this.voiceJobCity().trim() || 'Colombo';
+    const urgency = this.voiceJobUrgency().trim() || 'This Weekend';
+    const payment = this.voiceJobPaymentMethod().trim() || 'Cash';
+    const address = this.voiceJobAddress().trim() || 'Client Location';
+    const description = this.voiceJobPrompt().trim() || undefined;
+
+    this.isSubmittingJob.set(true);
+    this.voiceJobFeedback.set(null);
+
+    this.marketplaceService.createJob({
+      title: title,
+      serviceVariantId: this.voiceJobVariantId() || undefined,
+      budget: budget,
+      urgencyOrPreferredDate: urgency,
+      paymentMethod: payment,
+      description: description,
+      tagIds: [],
+      jobAreas: [
+        {
+          cityName: city,
+          address: address
+        }
+      ]
+    }).subscribe({
+      next: (res) => {
+        this.isSubmittingJob.set(false);
+        if (res.success) {
+          this.closeVoiceJobModal();
+          this.loadMarketplaceData();
+          this.jobModalService.notifyJobCreated();
+          this.activeTab.set('jobs');
+        } else {
+          this.voiceJobFeedback.set({ type: 'error', text: res.message || 'Failed to post job.' });
+        }
+      },
+      error: (err) => {
+        this.isSubmittingJob.set(false);
+        this.voiceJobFeedback.set({ type: 'error', text: err.error?.message || 'Error posting job.' });
+      }
     });
   }
 }

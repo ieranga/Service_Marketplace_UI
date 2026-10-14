@@ -347,6 +347,15 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                         <span>Create Jobs</span>
                       </button>
+                      <button type="button" class="btn btn-voice-creator btn-sm" (click)="toggleVoiceJobCreator()" [class.listening]="isVoiceJobListening()" title="Speak details to auto-generate and post a job">
+                        @if (isVoiceJobListening()) {
+                          <span class="voice-pulse-dot"></span>
+                          <span>Listening...</span>
+                        } @else {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                          <span>AI voice-creator</span>
+                        }
+                      </button>
                     </div>
                     <p class="group-sub">Your created and active job demands in the marketplace</p>
                   </div>
@@ -635,6 +644,213 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  <!-- AI Voice Job Creator Modal -->
+  @if (showVoiceJobModal()) {
+    <div class="modal-backdrop" (click)="closeVoiceJobModal()">
+      <div class="modal-card card-glass voice-modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-with-badge">
+            <h2 class="modal-title">ðŸŽ™ï¸ AI Voice Job Creator</h2>
+            <span class="badge-ai-accent">Voice to Job</span>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeVoiceJobModal()">âœ•</button>
+        </div>
+
+        @if (voiceJobFeedback()) {
+          <div [class]="voiceJobFeedback()?.type === 'error' ? 'alert-error mb-3' : 'alert-success mb-3'">
+            {{ voiceJobFeedback()?.text }}
+          </div>
+        }
+
+        <div class="voice-modal-body">
+          <!-- Live editable spoken prompt -->
+          <div class="form-group voice-prompt-box">
+            <div class="voice-prompt-header">
+              <label class="form-label mb-0">
+                <strong>Spoken Job Request / Prompt:</strong>
+                <span class="sub-label-hint ms-1 text-muted">(Review or edit what was heard)</span>
+              </label>
+              <button 
+                type="button" 
+                class="btn-mic-relisten" 
+                (click)="toggleVoiceJobCreator(true)" 
+                [class.listening]="isVoiceJobListening()"
+                title="Speak again or append to your request"
+              >
+                @if (isVoiceJobListening()) {
+                  <span class="voice-pulse-dot"></span>
+                  <span>Listening...</span>
+                } @else {
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                  <span>Speak Again</span>
+                }
+              </button>
+            </div>
+            <textarea
+              class="form-textarea voice-prompt-textarea mt-1"
+              rows="3"
+              [ngModel]="voiceJobPrompt()"
+              (ngModelChange)="onVoicePromptEdited($event)"
+              placeholder="e.g. I need an electrician in Colombo tomorrow with budget 6000 cash"
+            ></textarea>
+            <div class="voice-helper-tip">
+              ðŸ’¡ <em>Parameters below were auto-filled from your speech. Any missing parameters use system defaults.</em>
+            </div>
+          </div>
+
+          <form (ngSubmit)="confirmAndCreateJob()" class="modal-form">
+            <div class="form-group">
+              <label class="form-label">Job Title *</label>
+              <input
+                type="text"
+                class="form-input"
+                [ngModel]="voiceJobTitle()"
+                (ngModelChange)="voiceJobTitle.set($event)"
+                name="voiceJobTitle"
+                placeholder="e.g. Electrician Service Needed"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-badge">
+                <label class="form-label mb-0">Service Type / Variant</label>
+                @if (voiceJobVariantId()) {
+                  <span class="badge-status-detected">Auto-Matched</span>
+                } @else {
+                  <span class="badge-status-default">Default (Open Variant)</span>
+                }
+              </div>
+              <select
+                class="form-select mt-1"
+                [ngModel]="voiceJobVariantId()"
+                (ngModelChange)="voiceJobVariantId.set($event)"
+                name="voiceJobVariantId"
+              >
+                <option [ngValue]="null">Select matching service variant (Optional)...</option>
+                @for (variant of availableVariants(); track variant.id) {
+                  <option [ngValue]="variant.id">
+                    {{ variant.categoryName }} â†’ {{ variant.serviceName }} â†’ {{ variant.name }}
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <div class="label-with-badge">
+                  <label class="form-label mb-0">Target Budget (LKR)</label>
+                  @if (voicePromptHasBudget()) {
+                    <span class="badge-status-detected">From Speech</span>
+                  } @else {
+                    <span class="badge-status-default">Default: Rs. 5,000</span>
+                  }
+                </div>
+                <input
+                  type="number"
+                  class="form-input mt-1"
+                  [ngModel]="voiceJobBudget()"
+                  (ngModelChange)="voiceJobBudget.set($event)"
+                  name="voiceJobBudget"
+                  min="0"
+                />
+              </div>
+
+              <div class="form-group flex-1">
+                <div class="label-with-badge">
+                  <label class="form-label mb-0">Timeline / Urgency</label>
+                  @if (voicePromptHasUrgency()) {
+                    <span class="badge-status-detected">From Speech</span>
+                  } @else {
+                    <span class="badge-status-default">Default: This Weekend</span>
+                  }
+                </div>
+                <select
+                  class="form-select mt-1"
+                  [ngModel]="voiceJobUrgency()"
+                  (ngModelChange)="voiceJobUrgency.set($event)"
+                  name="voiceJobUrgency"
+                >
+                  <option value="Urgent - Today">Urgent - Today</option>
+                  <option value="This Weekend">This Weekend</option>
+                  <option value="Within a Week">Within a Week</option>
+                  <option value="Flexible">Flexible</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <div class="label-with-badge">
+                  <label class="form-label mb-0">City *</label>
+                  @if (voicePromptHasCity()) {
+                    <span class="badge-status-detected">From Speech</span>
+                  } @else {
+                    <span class="badge-status-default">Default: {{ voiceJobCity() }}</span>
+                  }
+                </div>
+                <input
+                  type="text"
+                  class="form-input mt-1"
+                  [ngModel]="voiceJobCity()"
+                  (ngModelChange)="voiceJobCity.set($event)"
+                  name="voiceJobCity"
+                  placeholder="e.g. Colombo"
+                  required
+                />
+              </div>
+
+              <div class="form-group flex-1">
+                <div class="label-with-badge">
+                  <label class="form-label mb-0">Payment Method</label>
+                  <span class="badge-status-default">Default: Cash</span>
+                </div>
+                <select
+                  class="form-select mt-1"
+                  [ngModel]="voiceJobPaymentMethod()"
+                  (ngModelChange)="voiceJobPaymentMethod.set($event)"
+                  name="voiceJobPaymentMethod"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Online Payment">Online Payment</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-badge">
+                <label class="form-label mb-0">Address / Landmark</label>
+                <span class="badge-status-default">Default: Client Location</span>
+              </div>
+              <input
+                type="text"
+                class="form-input mt-1"
+                [ngModel]="voiceJobAddress()"
+                (ngModelChange)="voiceJobAddress.set($event)"
+                name="voiceJobAddress"
+                placeholder="e.g. Client Location"
+              />
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline" (click)="closeVoiceJobModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-confirm-create" [disabled]="isSubmittingJob()">
+                @if (isSubmittingJob()) {
+                  <span class="spinner"></span>
+                  <span>Creating Job...</span>
+                } @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Confirm & create</span>
+                }
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   }
