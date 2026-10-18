@@ -1,0 +1,227 @@
+<div class="sera-widget-root">
+
+  <!-- ==========================================
+       CHATBOT WINDOW (OPTION 1 INTERFACE)
+       ========================================== -->
+  @if (activeMode() === 'chat') {
+    <div class="sera-window sera-chat-window animate-scale-up">
+      <!-- Chat Header -->
+      <div class="sera-window-header">
+        <div class="sera-bot-profile">
+          <div class="bot-avatar-badge">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="10" rx="3"/>
+              <circle cx="12" cy="5" r="2"/>
+              <line x1="12" y1="7" x2="12" y2="11"/>
+              <line x1="8" y1="15" x2="8.01" y2="15" stroke-width="3"/>
+              <line x1="16" y1="15" x2="16.01" y2="15" stroke-width="3"/>
+            </svg>
+            <span class="active-dot"></span>
+          </div>
+          <div class="bot-info">
+            <h3 class="bot-name">Sera</h3>
+            <span class="bot-status">AI Marketplace Assistant</span>
+          </div>
+        </div>
+        <div class="window-actions">
+          <button type="button" class="action-btn" (click)="openVoice()" title="Switch to Voice Bot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+            </svg>
+          </button>
+          <button type="button" class="action-btn close-btn" (click)="closeActiveWindow()" title="Close Chat">
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Body -->
+      <div class="sera-chat-body" #chatScrollContainer>
+        @for (msg of chatMessages(); track msg.id) {
+          <div class="chat-bubble-wrapper" [class.user-bubble]="msg.sender === 'user'" [class.sera-bubble]="msg.sender === 'sera'">
+            @if (msg.sender === 'sera') {
+              <div class="bubble-avatar">S</div>
+            }
+            <div class="bubble-content">
+              <p class="bubble-text">{{ msg.text }}</p>
+              <span class="bubble-time">{{ msg.time }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Quick suggestion chips -->
+        <div class="quick-prompts-area">
+          <span class="quick-title">Suggested requests:</span>
+          <div class="prompts-list">
+            @for (prompt of quickPrompts; track prompt) {
+              <button type="button" class="prompt-chip" (click)="selectQuickPrompt(prompt)">
+                {{ prompt }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="sera-chat-footer">
+        <input
+          type="text"
+          class="chat-input"
+          placeholder="Ask Sera anything about services or jobs..."
+          [ngModel]="userInputText()"
+          (ngModelChange)="userInputText.set($event)"
+          (keydown.enter)="sendMessage()"
+        />
+        <button type="button" class="btn-send" (click)="sendMessage()" [disabled]="!userInputText().trim()" title="Send Message">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ==========================================
+       VOICE BOT WINDOW (OPTION 3 INTERFACE)
+       ========================================== -->
+  @if (activeMode() === 'voice') {
+    <div class="sera-window sera-voice-window animate-scale-up">
+      <!-- Voice Header -->
+      <div class="sera-window-header">
+        <div class="sera-bot-profile">
+          <div class="bot-avatar-badge voice-avatar-badge">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            </svg>
+          </div>
+          <div class="bot-info">
+            <h3 class="bot-name">Sera Voice</h3>
+            <span class="bot-status">Voice AI Companion</span>
+          </div>
+        </div>
+        <div class="window-actions">
+          <button type="button" class="action-btn" (click)="openChat()" title="Switch to Chat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+          <button type="button" class="action-btn close-btn" (click)="closeActiveWindow()" title="Close Voice">
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <!-- Voice Body with Animated Wave Sphere -->
+      <div class="sera-voice-body">
+        <div class="voice-visualizer-container" [class.is-listening]="isVoiceListening()">
+          <div class="wave-glow wave-1"></div>
+          <div class="wave-glow wave-2"></div>
+          <div class="wave-glow wave-3"></div>
+          <button type="button" class="voice-center-orb" (click)="toggleVoice()" title="Tap to Speak">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+
+        <p class="voice-status-label">{{ voiceStatusText() }}</p>
+
+        @if (voiceTranscript()) {
+          <div class="voice-transcript-card">
+            <span class="transcript-header">You said:</span>
+            <p class="transcript-text">{{ voiceTranscript() }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==========================================
+       SPEED DIAL INTERFACE (LAYOUT: 3 \n 1 2)
+       ========================================== -->
+  <div class="sera-speed-dial-grid">
+
+    <!-- TOP ROW: [3] VOICE BOT OPTION (DIRECTLY ABOVE 2) -->
+    <div class="sera-dial-row top-row">
+      <div class="grid-spacer"></div> <!-- Spacer for left column -->
+      <div class="grid-slot slot-3">
+        @if (isExpanded()) {
+          <button
+            type="button"
+            class="sera-sub-btn voice-option animate-pop-up"
+            (click)="openVoice()"
+            title="Voice Option: Speak with Sera"
+          >
+            <span class="sub-label">Voice Bot</span>
+            <div class="sub-icon-circle voice-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW: [1] CHATBOT OPTION (LEFT) & [2] MAIN BOT OPTION (RIGHT) -->
+    <div class="sera-dial-row bottom-row">
+      <!-- 1 = Chat Option (On the left side, before the main bot option) -->
+      <div class="grid-slot slot-1">
+        @if (isExpanded()) {
+          <button
+            type="button"
+            class="sera-sub-btn chat-option animate-pop-left"
+            (click)="openChat()"
+            title="Chat Option: Message with Sera"
+          >
+            <span class="sub-label">Chatbot</span>
+            <div class="sub-icon-circle chat-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+          </button>
+        }
+      </div>
+
+      <!-- 2 = Main Bot Option ("Asked from Sera" in bottom-right corner) -->
+      <div class="grid-slot slot-2">
+        <button
+          type="button"
+          class="sera-main-trigger"
+          (click)="toggleMenu()"
+          [class.expanded]="isExpanded()"
+          [class.window-open]="activeMode() !== 'none'"
+          title="Asked from Sera"
+        >
+          <div class="main-avatar-wrapper">
+            <svg class="sera-robot-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="10" rx="3"/>
+              <circle cx="12" cy="5" r="2"/>
+              <line x1="12" y1="7" x2="12" y2="11"/>
+              <line x1="8" y1="15" x2="8.01" y2="15" stroke-width="3"/>
+              <line x1="16" y1="15" x2="16.01" y2="15" stroke-width="3"/>
+            </svg>
+            <span class="pulse-indicator"></span>
+          </div>
+          <span class="main-label">Asked from Sera</span>
+          @if (isExpanded() || activeMode() !== 'none') {
+            <span class="toggle-close-cross">&times;</span>
+          }
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
