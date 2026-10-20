@@ -1,54 +1,24 @@
 /* ==========================================================================
-   Sera AI Bot - Speed Dial & Chat/Voice Windows
-   Layout matrix requirement:
-      3
-    1 2
-   (2 = Main trigger in bottom-right, 1 = Chatbot left of 2, 3 = Voice above 2)
+   SERA AI ASSISTANT - UNIFIED CHAT & VOICE INTERFACE
    ========================================================================== */
 
-.sera-widget-root {
+.sera-floating-root {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 9999;
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
-  user-select: none;
+  font-family: inherit;
 }
 
 /* --------------------------------------------------------------------------
-   Speed-Dial Matrix Grid (3 \n 1 2)
+   Main Floating Trigger Button ("Asked from Sera")
    -------------------------------------------------------------------------- */
-.sera-speed-dial-grid {
+.sera-floating-container {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.sera-dial-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.top-row {
-  height: 48px;
-}
-
-.grid-spacer {
-  width: 140px;
-}
-
-.grid-slot {
-  display: flex;
-  align-items: center;
   justify-content: flex-end;
 }
 
-/* --------------------------------------------------------------------------
-   [2] Main Trigger Button ("Asked from Sera")
-   -------------------------------------------------------------------------- */
 .sera-main-trigger {
   position: relative;
   display: inline-flex;
@@ -85,27 +55,22 @@
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, margin 0.4s ease;
 }
 
-/* ROLLED INTO AVATAR WRAPPER IN 5 SECONDS */
-.sera-main-trigger.label-hidden:not(:hover):not(.expanded):not(.window-open) {
+/* 5-SECOND AUTO-ROLL: Collapses into avatar button */
+.sera-main-trigger.label-hidden:not(:hover):not(.window-open) {
   padding: 7px;
   gap: 0;
   border-radius: 50%;
 }
 
-.sera-main-trigger.label-hidden:not(:hover):not(.expanded):not(.window-open) .main-label {
+.sera-main-trigger.label-hidden:not(:hover):not(.window-open) .main-label {
   max-width: 0;
   opacity: 0;
   margin: 0;
   padding: 0;
 }
 
-.sera-main-trigger.expanded {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  box-shadow: 0 0 25px rgba(124, 58, 237, 0.6);
-}
-
 .sera-main-trigger.window-open {
-  background: rgba(30, 41, 59, 0.9);
+  background: rgba(30, 41, 59, 0.95);
   border-color: rgba(99, 102, 241, 0.5);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
@@ -126,111 +91,28 @@
 
 .sera-robot-icon {
   color: #ffffff;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
-.pulse-indicator {
+.active-pulse-ring {
   position: absolute;
-  bottom: 0px;
-  right: 0px;
+  top: -2px;
+  right: -2px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: #10b981;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 8px #10b981;
+  background: #10b981;
+  border: 2px solid #0f172a;
 }
 
 .toggle-close-cross {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 300;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.85);
-  margin-left: 2px;
-  font-weight: bold;
+  margin-left: 4px;
 }
 
 /* --------------------------------------------------------------------------
-   Sub-Buttons: [1] Chatbot (Left) and [3] Voice Bot (Above)
-   -------------------------------------------------------------------------- */
-.sera-sub-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-full, 9999px);
-  padding: 5px 12px 5px 6px;
-  cursor: pointer;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-}
-
-.sera-sub-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-.sub-icon-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.sub-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #f1f5f9;
-  white-space: nowrap;
-}
-
-/* [1] Chatbot Specifics */
-.chat-option .chat-circle {
-  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.45);
-}
-.chat-option:hover {
-  border-color: rgba(6, 182, 212, 0.6);
-}
-
-/* [3] Voice Bot Specifics */
-.voice-option .voice-circle {
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-  box-shadow: 0 0 12px rgba(236, 72, 153, 0.45);
-}
-.voice-option:hover {
-  border-color: rgba(236, 72, 153, 0.6);
-}
-
-/* Micro-animations */
-.animate-pop-up {
-  animation: popUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.animate-pop-left {
-  animation: popLeft 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes popUp {
-  0% { opacity: 0; transform: translateY(12px) scale(0.8); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes popLeft {
-  0% { opacity: 0; transform: translateX(12px) scale(0.8); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-/* --------------------------------------------------------------------------
-   Floating Windows (Chat & Voice)
+   Chat & Voice Window Modal
    -------------------------------------------------------------------------- */
 .sera-window {
   position: absolute;
@@ -244,6 +126,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.sera-chat-window {
+  width: 380px;
+  height: 520px;
 }
 
 .animate-scale-up {
@@ -285,14 +172,10 @@
   flex-shrink: 0;
 }
 
-.voice-avatar-badge {
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-}
-
-.active-dot {
+.online-indicator-dot {
   position: absolute;
-  bottom: -1px;
-  right: -1px;
+  bottom: 0;
+  right: 0;
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -300,11 +183,34 @@
   border: 2px solid #0f172a;
 }
 
+.bot-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.bot-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .bot-name {
+  margin: 0;
   font-size: 14px;
   font-weight: 700;
-  color: #ffffff;
-  line-height: 1.2;
+  color: #f8fafc;
+}
+
+.speaking-indicator {
+  color: #a5b4fc;
+  display: inline-flex;
+  align-items: center;
+  animation: speak-glow 1s infinite alternate;
+}
+
+@keyframes speak-glow {
+  from { opacity: 0.6; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1.1); color: #818cf8; }
 }
 
 .bot-status {
@@ -320,11 +226,11 @@
 
 .action-btn {
   background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: #cbd5e1;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -334,79 +240,76 @@
 
 .action-btn:hover {
   background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  color: #f8fafc;
 }
 
-.action-btn.close-btn {
+.close-btn {
   font-size: 18px;
+  line-height: 1;
 }
 
-/* --------------------------------------------------------------------------
-   Chat Window Styling (Option 1)
-   -------------------------------------------------------------------------- */
-.sera-chat-window {
-  width: 390px;
-  height: 540px;
-}
-
-.sera-chat-body {
+/* Chat Messages Container */
+.chat-messages-container {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.chat-bubble-wrapper {
+.chat-bubble-row {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
-  max-width: 88%;
 }
 
-.chat-bubble-wrapper.sera-bubble {
-  align-self: flex-start;
+.user-row {
+  justify-content: flex-end;
 }
 
-.chat-bubble-wrapper.user-bubble {
-  align-self: flex-end;
-  flex-direction: row-reverse;
+.sera-row {
+  justify-content: flex-start;
 }
 
-.bubble-avatar {
-  width: 28px;
-  height: 28px;
+.avatar-small {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
+  background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #ffffff;
   flex-shrink: 0;
+  margin-bottom: 2px;
 }
 
-.bubble-content {
-  background: rgba(30, 41, 59, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+.chat-bubble {
+  max-width: 82%;
   padding: 10px 14px;
-  border-radius: 14px;
-  border-top-left-radius: 2px;
+  border-radius: 16px;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
-.user-bubble .bubble-content {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  border: none;
-  border-radius: 14px;
-  border-top-right-radius: 2px;
+.user-bubble {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.sera-bubble {
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom-left-radius: 4px;
 }
 
 .bubble-text {
-  font-size: 12.8px;
-  color: #f8fafc;
-  line-height: 1.45;
   margin: 0;
+  word-break: break-word;
 }
 
 .bubble-time {
@@ -508,51 +411,141 @@
   color: #e2e8f0;
 }
 
-.quick-prompts-area {
-  margin-top: 8px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+/* Thinking Indicator */
+.thinking-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px 16px 16px 4px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a5b4fc;
+  animation: typing-blink 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-blink {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Quick Prompts Chips */
+.quick-prompts-wrapper {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .quick-title {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #94a3b8;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
-.prompts-list {
+.chips-scroll {
   display: flex;
-  flex-direction: column;
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chips-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .prompt-chip {
   background: rgba(99, 102, 241, 0.12);
   border: 1px solid rgba(99, 102, 241, 0.28);
   color: #c7d2fe;
-  font-size: 11.5px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  text-align: left;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .prompt-chip:hover {
   background: rgba(99, 102, 241, 0.25);
   border-color: #818cf8;
   color: #ffffff;
-  transform: translateX(2px);
 }
 
+/* --------------------------------------------------------------------------
+   Chat Footer: Integrated Voice & Send Controls
+   -------------------------------------------------------------------------- */
 .sera-chat-footer {
-  padding: 12px 14px;
-  background: rgba(30, 41, 59, 0.5);
+  padding: 10px 14px 12px;
+  background: rgba(30, 41, 59, 0.6);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.voice-live-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: #fca5a5;
+}
+
+.voice-live-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 12px;
+}
+
+.voice-live-wave span {
+  width: 3px;
+  height: 100%;
+  background: #ef4444;
+  border-radius: 2px;
+  animation: wave-bar 0.9s ease-in-out infinite;
+}
+
+.voice-live-wave span:nth-child(2) { animation-delay: 0.15s; }
+.voice-live-wave span:nth-child(3) { animation-delay: 0.3s; }
+.voice-live-wave span:nth-child(4) { animation-delay: 0.45s; }
+
+@keyframes wave-bar {
+  0%, 100% { height: 3px; }
+  50% { height: 12px; }
+}
+
+.btn-cancel-voice {
+  background: none;
+  border: none;
+  color: #fca5a5;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.chat-input-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .chat-input {
@@ -569,6 +562,44 @@
 
 .chat-input:focus {
   border-color: #818cf8;
+}
+
+/* Voice Microphone Button before btn-send and next to input area */
+.btn-voice-input {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c7d2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.btn-voice-input:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: #818cf8;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.btn-voice-input.listening {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #fca5a5;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
+  animation: mic-pulse 1.4s infinite;
+}
+
+@keyframes mic-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 .btn-send {
@@ -597,183 +628,10 @@
 }
 
 /* --------------------------------------------------------------------------
-   Voice Window Styling (Option 3)
-   -------------------------------------------------------------------------- */
-.sera-voice-window {
-  width: 360px;
-  min-height: 440px;
-  max-height: 560px;
-  overflow-y: auto;
-}
-
-.sera-voice-body {
-  padding: 24px 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-}
-
-.voice-visualizer-container {
-  position: relative;
-  width: 110px;
-  height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.wave-glow {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.is-listening .wave-1 {
-  animation: pulseWave 2s infinite ease-out;
-}
-.is-listening .wave-2 {
-  animation: pulseWave 2s infinite ease-out 0.6s;
-}
-.is-listening .wave-3 {
-  animation: pulseWave 2s infinite ease-out 1.2s;
-}
-
-@keyframes pulseWave {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(1.8); opacity: 0; }
-}
-
-.voice-center-orb {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-  border: 3px solid rgba(255, 255, 255, 0.35);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 0 25px rgba(236, 72, 153, 0.5);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-  z-index: 2;
-}
-
-.voice-center-orb:hover {
-  transform: scale(1.08);
-  box-shadow: 0 0 35px rgba(236, 72, 153, 0.7);
-}
-
-.is-listening .voice-center-orb {
-  animation: orbThrob 1.2s infinite alternate ease-in-out;
-}
-
-@keyframes orbThrob {
-  0% { transform: scale(1); filter: brightness(1); }
-  100% { transform: scale(1.1); filter: brightness(1.25); }
-}
-
-.voice-status-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #cbd5e1;
-  margin: 0;
-}
-
-/* Memorized draft pill in voice mode */
-.memorized-draft-pill {
-  width: 100%;
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: 12px;
-  padding: 10px;
-  text-align: left;
-}
-
-.pill-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #c7d2fe;
-  margin-bottom: 6px;
-}
-
-.badge-ready {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 9.5px;
-}
-
-.badge-collecting {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 9.5px;
-}
-
-.pill-items {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 11.5px;
-  color: #e2e8f0;
-}
-
-.btn-confirm-voice-job {
-  margin-top: 8px;
-  width: 100%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.voice-transcript-card, .voice-reply-card {
-  width: 100%;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 8px 12px;
-  text-align: left;
-}
-
-.transcript-header {
-  font-size: 10.5px;
-  color: #ec4899;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 2px;
-}
-
-.transcript-text {
-  font-size: 12px;
-  color: #f8fafc;
-  font-style: italic;
-  margin: 0;
-}
-
-/* --------------------------------------------------------------------------
    Mobile Responsiveness
    -------------------------------------------------------------------------- */
 @media (max-width: 480px) {
-  .sera-widget-root {
+  .sera-floating-root {
     bottom: 16px;
     right: 16px;
   }
@@ -781,12 +639,5 @@
     width: calc(100vw - 32px);
     right: 0;
     height: 480px;
-  }
-  .sera-voice-window {
-    width: calc(100vw - 32px);
-    right: 0;
-  }
-  .grid-spacer {
-    width: 100px;
   }
 }

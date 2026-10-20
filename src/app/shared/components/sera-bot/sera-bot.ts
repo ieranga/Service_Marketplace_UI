@@ -57,9 +57,8 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   @ViewChild('chatScrollContainer') private chatScrollContainer?: ElementRef<HTMLDivElement>;
 
-  // Speed-dial trigger state
-  isExpanded = signal<boolean>(false);
-  activeMode = signal<'none' | 'chat' | 'voice'>('none');
+  // Window & Trigger state
+  activeMode = signal<'none' | 'chat'>('none');
   isLabelHidden = signal<boolean>(false);
 
   // Chat bot state
@@ -76,6 +75,8 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Conversational Job Memory
   currentJobDraft = signal<JobDraft>({ isActive: false });
   isSubmittingJob = signal<boolean>(false);
+  isThinking = signal<boolean>(false);
+  isSeraSpeaking = signal<boolean>(false);
 
   // Quick suggestion chips
   readonly quickPrompts: string[] = [
@@ -85,13 +86,8 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     'How does payment work?'
   ];
 
-  // Voice bot state
+  // Voice recognition state
   isVoiceListening = signal<boolean>(false);
-  voiceTranscript = signal<string>('');
-  voiceStatusText = signal<string>("Hi, I am Sera, your work assistant! Tap the microphone to speak.");
-  seraVoiceReply = signal<string>('');
-  voiceActionType = signal<'none' | 'nav_login' | 'nav_service_mode' | 'nav_register'>('none');
-
   private speechRecognition: any = null;
   private shouldScrollChat = false;
   private rollTimer: any = null;
@@ -138,22 +134,21 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // Toggles speed-dial sub-options
-  toggleSpeedDial(): void {
-    this.isExpanded.update(v => !v);
+  // Toggles the unified Sera Chat box
+  toggleChat(): void {
+    if (this.activeMode() === 'chat') {
+      this.closeActiveWindow();
+    } else {
+      this.openChat();
+    }
   }
 
-  toggleMenu(): void {
-    this.toggleSpeedDial();
-  }
-
-  // Opens [1] Chat Bot
+  // Opens Chat Box
   openChat(): void {
     this.activeMode.set('chat');
-    this.isExpanded.set(false);
     this.shouldScrollChat = true;
 
-    // Self-Introduction in chat if only welcome message or empty
+    // Self-Introduction in chat if only welcome message
     if (this.chatMessages().length <= 1) {
       this.chatMessages.set([
         {
@@ -166,33 +161,24 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // Opens [3] Voice Bot
-  openVoice(): void {
-    this.activeMode.set('voice');
-    this.isExpanded.set(false);
-    this.voiceTranscript.set('');
-    this.seraVoiceReply.set('');
-    this.voiceActionType.set('none');
-    this.voiceStatusText.set("Hi, I am Sera, your work assistant! I'm listening. Speak your request.");
-
-    // Voice Self-Introduction via SpeechSynthesis (female voice)
-    this.speakOutLoud("Hi, I am Sera, your work assistant. What would you like to do today?");
-  }
-
   // Closes current active modal/window
   closeActiveWindow(): void {
     this.activeMode.set('none');
-    this.voiceActionType.set('none');
     this.stopVoiceRecognition();
     if (isPlatformBrowser(this.platformId) && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
+      this.isSeraSpeaking.set(false);
     }
   }
 
-  // Send a chat message
+  // Send a text chat message
   sendMessage(): void {
     const rawText = this.userInputText().trim();
     if (!rawText) return;
+
+    if (this.isVoiceListening()) {
+      this.stopVoiceRecognition();
+    }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -203,11 +189,34 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.chatMessages.update(msgs => [...msgs, userMsg]);
     this.userInputText.set('');
+    this.isThinking.set(true);
     this.shouldScrollChat = true;
 
-    // Conversational Agent processing
+    // Process reply
     setTimeout(() => {
+      this.isThinking.set(false);
       this.processAgentConversation(rawText, 'chat');
+    }, 400);
+  }
+
+  // Send voice-transcribed message in real-time
+  private sendVoiceMessage(spokenText: string): void {
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: spokenText,
+      time: this.formatCurrentTime()
+    };
+
+    this.chatMessages.update(msgs => [...msgs, userMsg]);
+    this.userInputText.set('');
+    this.isThinking.set(true);
+    this.shouldScrollChat = true;
+
+    setTimeout(() => {
+      this.isThinking.set(false);
+      // Process with channel='voice' so Sera responds in chat and speaks her reply out loud
+      this.processAgentConversation(spokenText, 'voice');
     }, 400);
   }
 
@@ -219,7 +228,6 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Normalize speech-to-text input to fix common browser voice recognition phonetics
   private normalizeUserInput(input: string): string {
     let text = input.trim();
-    // Normalize speech misrecognition e.g. "object request" -> "job request"
     text = text.replace(/\b(object|opt|chop|jop|java|jobb|drop)\s*(request|req)\b/gi, 'job request');
     text = text.replace(/\b(create|post|new|need|want|open|make)\s+(an?\s+)?(object|opt|chop|jop|java)\b/gi, '$1 $2job');
     text = text.replace(/\b(object|opt|chop|jop)\s+request\b/gi, 'job request');
@@ -292,7 +300,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       textLower === 'create it' || textLower === 'publish' || textLower === 'yes please' ||
       textLower === 'confirm and post' || textLower === 'confirm and create'
     )) {
-      this.executeJobCreation(channel);
+      this.executeJobCreation();
       return;
     }
 
@@ -304,7 +312,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    // Comprehensive detection of job request intent (handles phrases like "I need to create a new job request")
+    // Comprehensive detection of job request intent
     const hasJobKeyword =
       /\bjob\s*request\b/i.test(textLower) ||
       /\b(new|create|post|make|publish|open)\s+(a\s+)?(job)\b/i.test(textLower) ||
@@ -313,8 +321,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       /\b(fix|repair|clean|paint|wash|install)\s+(my\s+)?(ac|air\s*con|pipe|leak|tap|sink|roof|car|bike|wiring|house|wall)\b/i.test(textLower);
 
     const isAffirmative = /^(yes|yeah|sure|ok|okay|please|go ahead|proceed|yep|i do)(\s+.*)?$/i.test(textLower);
-    const lastMsgAskedAboutJob = this.chatMessages().slice(-1)[0]?.text?.toLowerCase().includes('job request') ||
-                                 this.seraVoiceReply().toLowerCase().includes('job request');
+    const lastMsgAskedAboutJob = this.chatMessages().slice(-1)[0]?.text?.toLowerCase().includes('job request');
 
     const isJobIntent = draft.isActive || hasJobKeyword || (isAffirmative && (draft.isActive || lastMsgAskedAboutJob));
 
@@ -332,7 +339,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     // -----------------------------------------------------------------------
-    // RULE 4: GENERAL CONVERSATIONAL RESPONSES (Never mechanically repeat user text)
+    // RULE 4: GENERAL CONVERSATIONAL RESPONSES
     // -----------------------------------------------------------------------
     if (/(hi|hello|hey|good\s*(morning|afternoon|evening))/i.test(textLower)) {
       this.sendAgentReply("Hi! I'm Sera, your work assistant. I can help you discover verified services, check prices, or create and post a job request for you. What would you like to get done?", channel);
@@ -354,7 +361,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    // Friendly, helpful default fallback - never echo user text as a generic repeat
+    // Friendly, helpful default fallback
     this.sendAgentReply("I'm here to help you get work done! Would you like me to help you create a job request, check prices, or find verified professionals in your area?", channel);
   }
 
@@ -370,13 +377,12 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     const current = { ...this.currentJobDraft(), isActive: true };
 
     // Check if the input is purely a trigger command without actual work/trade details
-    // e.g., "I need to create a new job request", "yes I need to create new job request", "create a job request"
     const cleanedTriggerWords = textLower
       .replace(/\b(yes|yeah|sure|please|ok|okay|i|need|to|want|can|you|create|post|publish|make|open|a|an|new|job|request|work|service|task|start|do)\b/gi, '')
       .replace(/[.,!?"']/g, '')
       .trim();
 
-    // If no title yet and the user only said the trigger phrase, politely ask for the requirement
+    // If no title yet and the user only said the trigger phrase, ask for the requirement
     if (!current.title && cleanedTriggerWords.length === 0) {
       this.currentJobDraft.set(current);
       const askForJobReply = "Sure! I can help you create a new job request. What service or repair work do you need done? (For example: Plumbing, AC Repair, Electrical, Painting, Cleaning)";
@@ -489,39 +495,37 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       `Payment: ${current.paymentMethod}\n\n` +
       `Would you like me to post this job to the marketplace now?`;
 
-    if (channel === 'chat') {
-      const confirmMsg: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'sera',
-        text: summaryText,
-        time: this.formatCurrentTime(),
-        isAction: true,
-        actionType: 'confirm_job',
-        draftSummary: {
-          title: current.title!,
-          city: current.city!,
-          budget: current.budget!,
-          urgency: current.urgency!,
-          paymentMethod: current.paymentMethod
-        }
-      };
-      this.chatMessages.update(msgs => [...msgs, confirmMsg]);
-      this.shouldScrollChat = true;
-    } else {
-      this.seraVoiceReply.set(summaryText);
-      this.voiceStatusText.set("Job ready! Say 'Confirm' to post.");
-      this.speakOutLoud(`I have memorized all parameters for ${current.title} in ${current.city} with budget Rs. ${current.budget}. Say Confirm to publish your job.`);
+    const confirmMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'sera',
+      text: summaryText,
+      time: this.formatCurrentTime(),
+      isAction: true,
+      actionType: 'confirm_job',
+      draftSummary: {
+        title: current.title!,
+        city: current.city!,
+        budget: current.budget!,
+        urgency: current.urgency!,
+        paymentMethod: current.paymentMethod
+      }
+    };
+    this.chatMessages.update(msgs => [...msgs, confirmMsg]);
+    this.shouldScrollChat = true;
+
+    if (channel === 'voice') {
+      this.speakOutLoud(`I have memorized all parameters for ${current.title} in ${current.city} with budget Rs. ${current.budget}. Tap Confirm and Post Job to publish your job.`);
     }
   }
 
   // Execute actual job creation in marketplace
-  executeJobCreation(channel: 'chat' | 'voice'): void {
+  executeJobCreation(): void {
     const draft = this.currentJobDraft();
     if (!draft.title) return;
 
     if (!this.auth.isAuthenticated()) {
       const authErr = "Sera cannot create a job request or service request until you log in to the system. Please log in first.";
-      this.sendAgentActionReply(authErr, 'nav_login', channel);
+      this.sendAgentActionReply(authErr, 'nav_login', 'chat');
       return;
     }
 
@@ -547,27 +551,21 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.currentJobDraft.set({ isActive: false });
           const successMsg = `Success! Your job "${draft.title}" in ${draft.city || 'Colombo'} has been published to the marketplace. Verified providers in your area will be notified to send proposals.`;
 
-          if (channel === 'chat') {
-            this.chatMessages.update(msgs => [...msgs, {
-              id: Date.now().toString(),
-              sender: 'sera',
-              text: successMsg,
-              time: this.formatCurrentTime()
-            }]);
-            this.shouldScrollChat = true;
-          } else {
-            this.seraVoiceReply.set(successMsg);
-            this.voiceActionType.set('none');
-            this.voiceStatusText.set("Job created successfully!");
-            this.speakOutLoud(`Your job for ${draft.title} has been successfully created and posted to the marketplace!`);
-          }
+          this.chatMessages.update(msgs => [...msgs, {
+            id: Date.now().toString(),
+            sender: 'sera',
+            text: successMsg,
+            time: this.formatCurrentTime()
+          }]);
+          this.shouldScrollChat = true;
+          this.speakOutLoud(`Your job for ${draft.title} has been successfully created and posted to the marketplace!`);
         } else {
-          this.sendAgentReply(`Failed to create job: ${res.message || 'Unknown error'}`, channel);
+          this.sendAgentReply(`Failed to create job: ${res.message || 'Unknown error'}`, 'chat');
         }
       },
       error: (err) => {
         this.isSubmittingJob.set(false);
-        this.sendAgentReply(`Error posting job request: ${err.error?.message || 'Could not connect to server.'}`, channel);
+        this.sendAgentReply(`Error posting job request: ${err.error?.message || 'Could not connect to server.'}`, 'chat');
       }
     });
   }
@@ -581,9 +579,9 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   // =========================================================================
-  // VOICE & SPEECH SYNTHESIS ENGINE
+  // INTEGRATED VOICE RECOGNITION & FEMALE SPEECH SYNTHESIS ENGINE
   // =========================================================================
-  toggleVoice(): void {
+  toggleVoiceInput(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
     if (this.isVoiceListening()) {
@@ -593,14 +591,19 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  private startVoiceRecognition(): void {
+  startVoiceRecognition(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.voiceStatusText.set("Speech recognition not supported in this browser. Please use Google Chrome or Edge.");
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
       return;
     }
 
     try {
+      if (this.speechRecognition) {
+        try { this.speechRecognition.abort(); } catch {}
+      }
+
       this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.lang = 'en-US';
       this.speechRecognition.continuous = false;
@@ -608,8 +611,10 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
       this.speechRecognition.onstart = () => {
         this.isVoiceListening.set(true);
-        this.voiceActionType.set('none');
-        this.voiceStatusText.set("Listening... speak your request to Sera.");
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          this.isSeraSpeaking.set(false);
+        }
       };
 
       this.speechRecognition.onresult = (event: any) => {
@@ -617,33 +622,30 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           transcript += event.results[i][0].transcript;
         }
-        this.voiceTranscript.set(transcript);
+        if (transcript) {
+          this.userInputText.set(transcript);
+        }
       };
 
-      this.speechRecognition.onerror = (event: any) => {
+      this.speechRecognition.onerror = () => {
         this.isVoiceListening.set(false);
-        this.voiceStatusText.set(`Voice error: ${event.error || 'Could not hear you. Tap mic to retry.'}`);
       };
 
       this.speechRecognition.onend = () => {
         this.isVoiceListening.set(false);
-        const spoken = this.voiceTranscript().trim();
+        const spoken = this.userInputText().trim();
         if (spoken) {
-          this.voiceStatusText.set("Thinking...");
-          this.processAgentConversation(spoken, 'voice');
-        } else {
-          this.voiceStatusText.set("No speech detected. Tap microphone to speak.");
+          this.sendVoiceMessage(spoken);
         }
       };
 
       this.speechRecognition.start();
     } catch {
       this.isVoiceListening.set(false);
-      this.voiceStatusText.set("Could not access microphone.");
     }
   }
 
-  private stopVoiceRecognition(): void {
+  stopVoiceRecognition(): void {
     if (this.speechRecognition) {
       try { this.speechRecognition.stop(); } catch {}
     }
@@ -710,31 +712,34 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
       utterance.rate = 1.0;
 
-      // Adjust pitch to ensure a natural, pleasant female tone
       const isNamedFemale = femaleVoice && [
         'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria',
         'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena', 'female'
       ].some(n => femaleVoice.name.toLowerCase().includes(n));
 
       utterance.pitch = isNamedFemale ? 1.12 : 1.25;
+
+      utterance.onstart = () => this.isSeraSpeaking.set(true);
+      utterance.onend = () => this.isSeraSpeaking.set(false);
+      utterance.onerror = () => this.isSeraSpeaking.set(false);
+
       window.speechSynthesis.speak(utterance);
-    } catch {}
+    } catch {
+      this.isSeraSpeaking.set(false);
+    }
   }
 
   private sendAgentReply(text: string, channel: 'chat' | 'voice'): void {
-    if (channel === 'chat') {
-      const replyMsg: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'sera',
-        text: text,
-        time: this.formatCurrentTime()
-      };
-      this.chatMessages.update(msgs => [...msgs, replyMsg]);
-      this.shouldScrollChat = true;
-    } else {
-      this.seraVoiceReply.set(text);
-      this.voiceActionType.set('none');
-      this.voiceStatusText.set("Sera replied. Tap mic to answer.");
+    const replyMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'sera',
+      text: text,
+      time: this.formatCurrentTime()
+    };
+    this.chatMessages.update(msgs => [...msgs, replyMsg]);
+    this.shouldScrollChat = true;
+
+    if (channel === 'voice') {
       this.speakOutLoud(text);
     }
   }
@@ -744,24 +749,18 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     actionType: 'nav_login' | 'nav_service_mode' | 'nav_register',
     channel: 'chat' | 'voice'
   ): void {
-    if (channel === 'chat') {
-      const replyMsg: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'sera',
-        text: text,
-        time: this.formatCurrentTime(),
-        isAction: true,
-        actionType: actionType
-      };
-      this.chatMessages.update(msgs => [...msgs, replyMsg]);
-      this.shouldScrollChat = true;
-    } else {
-      this.seraVoiceReply.set(text);
-      this.voiceActionType.set(actionType);
-      const statusText = actionType === 'nav_login'
-        ? "Login required."
-        : (actionType === 'nav_service_mode' ? "Service Profile required." : "Profile action required.");
-      this.voiceStatusText.set(statusText);
+    const replyMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'sera',
+      text: text,
+      time: this.formatCurrentTime(),
+      isAction: true,
+      actionType: actionType
+    };
+    this.chatMessages.update(msgs => [...msgs, replyMsg]);
+    this.shouldScrollChat = true;
+
+    if (channel === 'voice') {
       this.speakOutLoud(text);
     }
   }
