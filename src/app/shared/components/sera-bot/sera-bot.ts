@@ -1,13 +1,13 @@
 import {
   Component,
-  signal,
-  inject,
   OnInit,
   OnDestroy,
-  PLATFORM_ID,
-  ViewChild,
+  AfterViewChecked,
   ElementRef,
-  AfterViewChecked
+  ViewChild,
+  signal,
+  inject,
+  PLATFORM_ID
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -39,7 +39,6 @@ export interface JobDraft {
   budget?: number;
   urgency?: string;
   paymentMethod?: string;
-  address?: string;
 }
 
 @Component({
@@ -50,38 +49,33 @@ export interface JobDraft {
   styleUrl: './sera-bot.css'
 })
 export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
-  private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
+  readonly auth = inject(AuthService);
   private readonly marketplaceService = inject(MarketplaceService);
   private readonly jobModalService = inject(JobModalService);
-  readonly auth = inject(AuthService);
+  private readonly platformId = inject(PLATFORM_ID);
 
   @ViewChild('chatScrollContainer') private chatScrollContainer?: ElementRef<HTMLDivElement>;
 
-  // Speed-dial expansion state (controls showing option 1 and 3)
+  // Speed-dial trigger state
   isExpanded = signal<boolean>(false);
-
-  // Roll-in state: "Asked from Sera" text hides after 5 seconds
+  activeMode = signal<'none' | 'chat' | 'voice'>('none');
   isLabelHidden = signal<boolean>(false);
 
-  // Active interface mode ('none' | 'chat' | 'voice')
-  activeMode = signal<'none' | 'chat' | 'voice'>('none');
-
-  // Conversational Job Draft (Memorized parameters)
-  currentJobDraft = signal<JobDraft>({ isActive: false });
-  isSubmittingJob = signal<boolean>(false);
-
-  // Chat conversation state
+  // Chat bot state
+  userInputText = signal<string>('');
   chatMessages = signal<ChatMessage[]>([
     {
       id: '1',
       sender: 'sera',
-      text: "Hi, I am Sera, your work assistant! 🤖 I can help you find verified service providers, answer questions, or create and post job requests for you. How can I help you today?",
+      text: 'Hi, I am Sera, your work assistant! How can I help you today?',
       time: this.formatCurrentTime()
     }
   ]);
 
-  userInputText = signal<string>('');
+  // Conversational Job Memory
+  currentJobDraft = signal<JobDraft>({ isActive: false });
+  isSubmittingJob = signal<boolean>(false);
 
   // Quick suggestion chips
   readonly quickPrompts: string[] = [
@@ -96,6 +90,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
   voiceTranscript = signal<string>('');
   voiceStatusText = signal<string>("Hi, I am Sera, your work assistant! Tap the microphone to speak.");
   seraVoiceReply = signal<string>('');
+  voiceActionType = signal<'none' | 'nav_login' | 'nav_service_mode' | 'nav_register'>('none');
 
   private speechRecognition: any = null;
   private shouldScrollChat = false;
@@ -116,6 +111,18 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.cachedVoices = window.speechSynthesis.getVoices();
         };
       }
+
+      // Sync user service profile status in background if logged in
+      if (this.auth.isAuthenticated() && !this.auth.currentUser()?.hasServiceProfile) {
+        this.marketplaceService.getMyServices().subscribe({
+          next: (res) => {
+            if (res.success && res.data && res.data.length > 0) {
+              this.auth.updateCurrentUserProfileStatus(true);
+            }
+          },
+          error: () => {}
+        });
+      }
     }
   }
 
@@ -131,28 +138,28 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // Toggles the speed-dial options (1 and 3)
-  toggleMenu(): void {
-    if (this.activeMode() !== 'none') {
-      this.closeActiveWindow();
-    } else {
-      this.isExpanded.update(val => !val);
-    }
+  // Toggles speed-dial sub-options
+  toggleSpeedDial(): void {
+    this.isExpanded.update(v => !v);
   }
 
-  // Opens [1] Chatbot
+  toggleMenu(): void {
+    this.toggleSpeedDial();
+  }
+
+  // Opens [1] Chat Bot
   openChat(): void {
     this.activeMode.set('chat');
     this.isExpanded.set(false);
     this.shouldScrollChat = true;
 
-    // Self-introduction if conversation is empty
-    if (this.chatMessages().length === 0) {
+    // Self-Introduction in chat if only welcome message or empty
+    if (this.chatMessages().length <= 1) {
       this.chatMessages.set([
         {
           id: Date.now().toString(),
           sender: 'sera',
-          text: "Hi, I am Sera, your work assistant! 🤖 Tell me what service you need or a job you'd like to create.",
+          text: 'Hi, I am Sera, your work assistant! I can help you find services, answer marketplace questions, or create and post a job request for you.',
           time: this.formatCurrentTime()
         }
       ]);
@@ -165,15 +172,17 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.isExpanded.set(false);
     this.voiceTranscript.set('');
     this.seraVoiceReply.set('');
+    this.voiceActionType.set('none');
     this.voiceStatusText.set("Hi, I am Sera, your work assistant! I'm listening. Speak your request.");
 
-    // Voice Self-Introduction via SpeechSynthesis
+    // Voice Self-Introduction via SpeechSynthesis (female voice)
     this.speakOutLoud("Hi, I am Sera, your work assistant. What would you like to do today?");
   }
 
   // Closes current active modal/window
   closeActiveWindow(): void {
     this.activeMode.set('none');
+    this.voiceActionType.set('none');
     this.stopVoiceRecognition();
     if (isPlatformBrowser(this.platformId) && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -196,7 +205,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.userInputText.set('');
     this.shouldScrollChat = true;
 
-    // Process through Sera's Conversational Agent Brain
+    // Conversational Agent processing
     setTimeout(() => {
       this.processAgentConversation(text, 'chat');
     }, 400);
@@ -214,36 +223,53 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     const textLower = userText.toLowerCase().trim();
 
     // -----------------------------------------------------------------------
-    // RULE 3: GUARDRAIL - Sera CANNOT create user profiles or provider profiles
+    // RULE 1: GUARDRAIL - Sera CANNOT create user profiles or provider profiles
     // -----------------------------------------------------------------------
     if (
-      /(create|make|register|setup|open|add)\s+(my\s+)?(user\s+)?(account|profile|user\s+profile|provider\s+profile|service\s+profile)/i.test(textLower) ||
-      /(register|sign\s*up)\s+me\s+(as\s+a\s+)?(provider|worker|pro|seller|user)?/i.test(textLower) ||
-      /(add|create)\s+(my\s+)?services?\s+to\s+my\s+profile/i.test(textLower)
+      /(create|make|register|setup|open|add)\s+(my\s+)?(user\s+)?(account|profile|user\s+profile|provider\s+profile)/i.test(textLower) ||
+      /(create|make|register|setup)\s+(my\s+)?service\s+profile/i.test(textLower) ||
+      /(register|sign\s*up)\s+me\s+(as\s+a\s+)?(provider|worker|pro|seller|user)?/i.test(textLower)
     ) {
       const refusalReply = "I cannot create user profiles or provider service profiles directly. User accounts and provider profiles contain private personal details and verified credentials that must be registered manually. You can easily create an account on the Register page, or go to Service Provider Mode to manage your services.";
-
-      if (channel === 'chat') {
-        const msg: ChatMessage = {
-          id: Date.now().toString(),
-          sender: 'sera',
-          text: refusalReply,
-          time: this.formatCurrentTime(),
-          isAction: true,
-          actionType: 'nav_register'
-        };
-        this.chatMessages.update(m => [...m, msg]);
-        this.shouldScrollChat = true;
-      } else {
-        this.seraVoiceReply.set(refusalReply);
-        this.voiceStatusText.set("Profile creation must be done manually.");
-        this.speakOutLoud(refusalReply);
-      }
+      this.sendAgentActionReply(refusalReply, 'nav_register', channel);
       return;
     }
 
     // -----------------------------------------------------------------------
-    // RULE 2: JOB CREATION / SERVICE REQUEST CONVERSATIONAL FLOW
+    // RULE 2: SERVICE REQUEST INTENT
+    // "Whether the user logs in, Sera cannot create a service request if user not create his service profile."
+    // -----------------------------------------------------------------------
+    const isServiceRequestIntent =
+      /(service\s*request)/i.test(textLower) ||
+      /(create|post|add|offer|publish|provide|new)\s+(a\s+)?(service\s*request|service\s*offering|service\b)/i.test(textLower) ||
+      /(offer|provide)\s+(a\s+)?service\b/i.test(textLower) ||
+      /(add|post|create)\s+my\s+services?/i.test(textLower);
+
+    if (isServiceRequestIntent) {
+      // 1. Must be logged in
+      if (!this.auth.isAuthenticated()) {
+        const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
+        this.sendAgentActionReply(notLoggedInMsg, 'nav_login', channel);
+        return;
+      }
+
+      // 2. User is logged in: Check if service profile exists
+      const hasProfile = !!this.auth.currentUser()?.hasServiceProfile;
+      if (!hasProfile) {
+        const noProfileMsg = "You cannot create a service request because you have not created your Service Profile yet. Please visit Service Mode to create your Service Profile first.";
+        this.sendAgentActionReply(noProfileMsg, 'nav_service_mode', channel);
+        return;
+      }
+
+      // 3. User is logged in and has an active service profile
+      const activeProfileMsg = "Your Service Profile is active! To configure and publish a new service listing with categories, pricing, and images, please use Service Provider Mode.";
+      this.sendAgentActionReply(activeProfileMsg, 'nav_service_mode', channel);
+      return;
+    }
+
+    // -----------------------------------------------------------------------
+    // RULE 3: JOB CREATION / JOB REQUEST INTENT
+    // "Sera cannot create a job request or service request until the user logs in to the system."
     // -----------------------------------------------------------------------
     const draft = this.currentJobDraft();
 
@@ -263,16 +289,23 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Detect if this message initiates or continues a job creation request
     const isJobIntent = draft.isActive ||
-      /(create|post|publish|need|find|hire|want)\s+(a\s+)?(job|service\s*request|work|repair|clean|plumb|technician|electrician|mechanic|carpenter)/i.test(textLower) ||
-      /(fix|wash|install|service|paint|clean)/i.test(textLower);
+      /(create|post|publish|need|find|hire|want)\s+(a\s+)?(job\s*request|job|work|repair|clean|plumb|technician|electrician|mechanic|carpenter)/i.test(textLower) ||
+      /(fix|wash|install|service|paint|clean)\b/i.test(textLower);
 
     if (isJobIntent) {
+      // Must be logged in: Sera cannot create a job request until user logs in
+      if (!this.auth.isAuthenticated()) {
+        const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
+        this.sendAgentActionReply(notLoggedInMsg, 'nav_login', channel);
+        return;
+      }
+
       this.handleJobCreationDialogue(userText, channel);
       return;
     }
 
     // -----------------------------------------------------------------------
-    // RULE 1: GENERAL CONVERSATIONAL RESPONSES
+    // RULE 4: GENERAL CONVERSATIONAL RESPONSES
     // -----------------------------------------------------------------------
     if (/(hi|hello|hey|good\s*(morning|afternoon|evening))/i.test(textLower)) {
       this.sendAgentReply("Hi! I'm Sera, your work assistant. I can help you discover verified services, check prices, or create and post a job request for you. What would you like to get done?", channel);
@@ -280,7 +313,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     if (/(who\s+are\s+you|what\s+can\s+you\s+do|capabilities|help\s+me)/i.test(textLower)) {
-      this.sendAgentReply("I'm Sera, your dedicated marketplace AI work assistant! Here is what I can do for you:\n- Create and post verified job demands with customized budgets and locations\n- Help you find top-rated service pros across Sri Lanka\n- Guide you on payments, ratings, and marketplace features.\n(Note: user accounts and provider profiles must be created manually).", channel);
+      this.sendAgentReply("I'm Sera, your dedicated marketplace AI work assistant! Here is what I can do for you:\n- Create and post verified job requests with customized budgets and locations (requires login)\n- Help you find top-rated service pros across Sri Lanka\n- Guide you on payments, ratings, and marketplace features.\n(Note: User accounts and service profiles must be created manually).", channel);
       return;
     }
 
@@ -295,6 +328,12 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // Handle step-by-step job creation dialogue & memorization
   private handleJobCreationDialogue(userText: string, channel: 'chat' | 'voice'): void {
+    if (!this.auth.isAuthenticated()) {
+      const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
+      this.sendAgentActionReply(notLoggedInMsg, 'nav_login', channel);
+      return;
+    }
+
     const textLower = userText.toLowerCase();
     const current = { ...this.currentJobDraft(), isActive: true };
 
@@ -328,66 +367,78 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       current.urgency = 'Urgent - Today';
     } else if (/(weekend|saturday|sunday)/i.test(textLower)) {
       current.urgency = 'This Weekend';
-    } else if (/(week|next week|few days)/i.test(textLower)) {
+    } else if (/(next\s+week|within\s+a\s+week|this\s+week)/i.test(textLower)) {
       current.urgency = 'Within a Week';
-    } else if (/(flexible|anytime)/i.test(textLower)) {
+    } else if (/(flexible|anytime|whenever)/i.test(textLower)) {
       current.urgency = 'Flexible';
     }
 
-    // 4. Memorize Payment method
-    if (/(online|card|bank|transfer)/i.test(textLower)) {
-      current.paymentMethod = textLower.includes('transfer') ? 'Bank Transfer' : 'Online Payment';
+    // 4. Memorize Payment Method if mentioned
+    if (/(bank\s*transfer|bank|transfer)/i.test(textLower)) {
+      current.paymentMethod = 'Bank Transfer';
+    } else if (/(card|online|credit|debit)/i.test(textLower)) {
+      current.paymentMethod = 'Online Payment';
+    } else if (/(cash|cash\s*on\s*delivery|cod)/i.test(textLower)) {
+      current.paymentMethod = 'Cash';
     }
 
     // 5. Memorize Title / Requirement if not set yet
     if (!current.title) {
-      let clean = userText
-        .replace(/(i need|i want to|create a job for|create a job|post a job for|post a job|service request for|can you)/gi, '')
-        .replace(/(in|near)\s+(colombo|kandy|galle|negombo|rathnapura|matara)/gi, '')
-        .replace(/(rs\.?|lkr)\s*[0-9]+/gi, '')
-        .replace(/today|this weekend|within a week|tomorrow/gi, '')
+      let cleaned = userText
+        .replace(/(?:create|post|publish|need|find|hire|want)\s+(?:a\s+)?(?:job|service\s*request|work)?/gi, '')
+        .replace(/(?:in|near|at)\s+(?:colombo|rathnapura|ratnapura|kandy|galle|negombo|matara|gampaha|kurunegala|kalutara|jaffna)/gi, '')
+        .replace(/(?:rs\.?|lkr|budget|cost|price)?\s*[:=]?\s*[0-9,]{3,10}\s*(?:rs\.?|lkr|rupees)?/gi, '')
+        .replace(/(?:urgent|today|tomorrow|this weekend|flexible)/gi, '')
+        .replace(/^(?:for|to|with|please)\s+/gi, '')
         .trim();
 
-      if (clean.length > 2) {
-        current.title = clean.charAt(0).toUpperCase() + clean.slice(1);
+      if (cleaned.length >= 3) {
+        current.title = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      } else if (userText.trim().length > 3) {
+        current.title = userText.trim();
       }
     }
 
-    // Save updated draft state
     this.currentJobDraft.set(current);
 
-    // Determine what required parameter is still missing
-    if (!current.title || current.title.length < 3) {
-      this.sendAgentReply("What service or repair do you need done? (e.g., Plumbing leak, AC repair, House cleaning)", channel);
+    // Check what parameters are still missing
+    const missing: string[] = [];
+    if (!current.title) missing.push('what job/service you need');
+    if (!current.city) missing.push('your city/location (e.g. Colombo, Kandy, Rathnapura)');
+    if (!current.budget) missing.push('your estimated budget (in Rs.)');
+    if (!current.urgency) missing.push('your preferred timeline (e.g. Today, This Weekend, Flexible)');
+
+    // If parameters are missing, ask for the next one while confirming what was memorized
+    if (missing.length > 0) {
+      let reply = `Got it! I have memorized your job requirement`;
+      const details: string[] = [];
+      if (current.title) details.push(`Requirement: "${current.title}"`);
+      if (current.city) details.push(`Location: ${current.city}`);
+      if (current.budget) details.push(`Budget: Rs. ${current.budget.toLocaleString()}`);
+      if (current.urgency) details.push(`Timeline: ${current.urgency}`);
+
+      if (details.length > 0) {
+        reply += ` (${details.join(', ')}).\n\n`;
+      } else {
+        reply += `.\n\n`;
+      }
+
+      reply += `To finalize your request, please tell me: ${missing[0]}.`;
+      this.sendAgentReply(reply, channel);
       return;
     }
 
-    if (!current.city) {
-      this.sendAgentReply("Understood! Which city or area is this job for? (e.g. Colombo, Kandy, Negombo)", channel);
-      return;
-    }
-
-    if (!current.budget) {
-      this.sendAgentReply(`Great, a job for "${current.title}" in ${current.city}. What is your target budget in LKR? (Or say "default" for Rs. 5,000)`, channel);
-      return;
-    }
-
-    if (!current.urgency) {
-      this.sendAgentReply("How soon do you need this done? (Options: Urgent Today, This Weekend, or Flexible)", channel);
-      return;
-    }
-
-    // All parameters are collected! Present confirmation summary
+    // All parameters memorized! Present confirmation card to the user
     if (!current.paymentMethod) current.paymentMethod = 'Cash';
+    this.currentJobDraft.set(current);
 
-    const summaryText = `All parameters collected! Here is your job request summary:
-- Title: ${current.title}
-- City: ${current.city}
-- Budget: Rs. ${current.budget.toLocaleString()}
-- Timeline: ${current.urgency}
-- Payment: ${current.paymentMethod}
-
-Would you like me to post this job to the marketplace now? Say or type "Confirm", or click the button below.`;
+    const summaryText = `All parameters are set for your job request!\n\n` +
+      `Requirement: ${current.title}\n` +
+      `Location: ${current.city}\n` +
+      `Budget: Rs. ${current.budget?.toLocaleString()}\n` +
+      `Timeline: ${current.urgency}\n` +
+      `Payment: ${current.paymentMethod}\n\n` +
+      `Would you like me to post this job to the marketplace now?`;
 
     if (channel === 'chat') {
       const confirmMsg: ChatMessage = {
@@ -398,10 +449,10 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
         isAction: true,
         actionType: 'confirm_job',
         draftSummary: {
-          title: current.title,
-          city: current.city,
-          budget: current.budget,
-          urgency: current.urgency,
+          title: current.title!,
+          city: current.city!,
+          budget: current.budget!,
+          urgency: current.urgency!,
           paymentMethod: current.paymentMethod
         }
       };
@@ -420,20 +471,8 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
     if (!draft.title) return;
 
     if (!this.auth.isAuthenticated()) {
-      const authErr = "You need to be logged into your account before I can post this job for you. Please log in first.";
-      if (channel === 'chat') {
-        this.chatMessages.update(msgs => [...msgs, {
-          id: Date.now().toString(),
-          sender: 'sera',
-          text: authErr,
-          time: this.formatCurrentTime(),
-          isAction: true,
-          actionType: 'nav_login'
-        }]);
-      } else {
-        this.seraVoiceReply.set(authErr);
-        this.speakOutLoud(authErr);
-      }
+      const authErr = "Sera cannot create a job request or service request until you log in to the system. Please log in first.";
+      this.sendAgentActionReply(authErr, 'nav_login', channel);
       return;
     }
 
@@ -457,9 +496,7 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
         this.isSubmittingJob.set(false);
         if (res.success) {
           this.currentJobDraft.set({ isActive: false });
-          this.jobModalService.notifyJobCreated();
-
-          const successMsg = `Awesome! Your job request for "${draft.title}" in ${draft.city || 'Colombo'} has been published to the marketplace! Verified service providers can now view and apply.`;
+          const successMsg = `Success! Your job "${draft.title}" in ${draft.city || 'Colombo'} has been published to the marketplace. Verified providers in your area will be notified to send proposals.`;
 
           if (channel === 'chat') {
             this.chatMessages.update(msgs => [...msgs, {
@@ -471,6 +508,7 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
             this.shouldScrollChat = true;
           } else {
             this.seraVoiceReply.set(successMsg);
+            this.voiceActionType.set('none');
             this.voiceStatusText.set("Job created successfully!");
             this.speakOutLoud(`Your job for ${draft.title} has been successfully created and posted to the marketplace!`);
           }
@@ -493,71 +531,66 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
     if (destination === 'login') this.router.navigate(['/login']);
   }
 
-  // Voice Interaction & Web Speech Recognition
+  // =========================================================================
+  // VOICE & SPEECH SYNTHESIS ENGINE
+  // =========================================================================
   toggleVoice(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
     if (this.isVoiceListening()) {
       this.stopVoiceRecognition();
-      return;
+    } else {
+      this.startVoiceRecognition();
     }
+  }
 
+  private startVoiceRecognition(): void {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.voiceStatusText.set('Speech recognition is not supported in this browser.');
+      this.voiceStatusText.set("Speech recognition not supported in this browser. Please use Google Chrome or Edge.");
       return;
     }
 
     try {
       this.speechRecognition = new SpeechRecognition();
+      this.speechRecognition.lang = 'en-US';
       this.speechRecognition.continuous = false;
       this.speechRecognition.interimResults = true;
-      this.speechRecognition.lang = 'en-US';
-
-      let capturedText = '';
 
       this.speechRecognition.onstart = () => {
         this.isVoiceListening.set(true);
-        this.voiceStatusText.set("Listening to your voice... Speak now.");
+        this.voiceActionType.set('none');
+        this.voiceStatusText.set("Listening... speak your request to Sera.");
       };
 
       this.speechRecognition.onresult = (event: any) => {
-        let interim = '';
-        let final = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript;
-          } else {
-            interim += event.results[i][0].transcript;
-          }
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
         }
-        const current = (final || interim).trim();
-        if (current) {
-          capturedText = current;
-          this.voiceTranscript.set(current);
-        }
+        this.voiceTranscript.set(transcript);
       };
 
       this.speechRecognition.onerror = (event: any) => {
         this.isVoiceListening.set(false);
-        this.voiceStatusText.set(`Voice error: ${event.error || 'could not capture speech'}`);
+        this.voiceStatusText.set(`Voice error: ${event.error || 'Could not hear you. Tap mic to retry.'}`);
       };
 
       this.speechRecognition.onend = () => {
         this.isVoiceListening.set(false);
-        const finalSpoken = capturedText.trim() || this.voiceTranscript().trim();
-        if (finalSpoken) {
-          this.voiceStatusText.set("Processing what you said...");
-          this.processAgentConversation(finalSpoken, 'voice');
+        const spoken = this.voiceTranscript().trim();
+        if (spoken) {
+          this.voiceStatusText.set("Thinking...");
+          this.processAgentConversation(spoken, 'voice');
         } else {
           this.voiceStatusText.set("No speech detected. Tap microphone to speak.");
         }
       };
 
       this.speechRecognition.start();
-    } catch (err: any) {
+    } catch {
       this.isVoiceListening.set(false);
-      this.voiceStatusText.set('Could not initialize microphone.');
+      this.voiceStatusText.set("Could not access microphone.");
     }
   }
 
@@ -578,24 +611,24 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
 
     // Prioritized list of known female voice names (case-insensitive)
     const femaleKeywords = [
-      'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria', 
-      'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena', 
-      'fiona', 'stephanie', 'moira', 'ava', 'allison', 'olivia', 
+      'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria',
+      'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena',
+      'fiona', 'stephanie', 'moira', 'ava', 'allison', 'olivia',
       'clara', 'catherine', 'alice', 'linda', 'eva', 'female', 'woman'
     ];
 
     // 1. High priority: English voice matching female names
     for (const keyword of femaleKeywords) {
-      const match = voices.find(v => 
-        v.lang.toLowerCase().startsWith('en') && 
+      const match = voices.find(v =>
+        v.lang.toLowerCase().startsWith('en') &&
         v.name.toLowerCase().includes(keyword)
       );
       if (match) return match;
     }
 
     // 2. Google US English (default female voice on Chrome/Android) or UK English Female
-    const googleVoice = voices.find(v => 
-      v.lang.toLowerCase().startsWith('en') && 
+    const googleVoice = voices.find(v =>
+      v.lang.toLowerCase().startsWith('en') &&
       (v.name.includes('Female') || v.name.includes('Google US English'))
     );
     if (googleVoice) return googleVoice;
@@ -651,7 +684,35 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
       this.shouldScrollChat = true;
     } else {
       this.seraVoiceReply.set(text);
+      this.voiceActionType.set('none');
       this.voiceStatusText.set("Sera replied. Tap mic to answer.");
+      this.speakOutLoud(text);
+    }
+  }
+
+  private sendAgentActionReply(
+    text: string,
+    actionType: 'nav_login' | 'nav_service_mode' | 'nav_register',
+    channel: 'chat' | 'voice'
+  ): void {
+    if (channel === 'chat') {
+      const replyMsg: ChatMessage = {
+        id: Date.now().toString(),
+        sender: 'sera',
+        text: text,
+        time: this.formatCurrentTime(),
+        isAction: true,
+        actionType: actionType
+      };
+      this.chatMessages.update(msgs => [...msgs, replyMsg]);
+      this.shouldScrollChat = true;
+    } else {
+      this.seraVoiceReply.set(text);
+      this.voiceActionType.set(actionType);
+      const statusText = actionType === 'nav_login'
+        ? "Login required."
+        : (actionType === 'nav_service_mode' ? "Service Profile required." : "Profile action required.");
+      this.voiceStatusText.set(statusText);
       this.speakOutLoud(text);
     }
   }

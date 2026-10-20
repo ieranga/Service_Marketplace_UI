@@ -83,6 +83,14 @@
                 </div>
               }
 
+              @if (msg.isAction && msg.actionType === 'nav_service_mode') {
+                <div class="guardrail-buttons-row">
+                  <button type="button" class="btn-guardrail-action" (click)="navigateTo('service-mode')">
+                    Go to Service Mode &rarr;
+                  </button>
+                </div>
+              }
+
               <span class="bubble-time">{{ msg.time }}</span>
             </div>
           </div>
