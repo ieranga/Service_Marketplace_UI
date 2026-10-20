@@ -20,7 +20,7 @@
           </div>
           <div class="bot-info">
             <h3 class="bot-name">Sera</h3>
-            <span class="bot-status">AI Marketplace Assistant</span>
+            <span class="bot-status">Your Work Assistant &bull; Online</span>
           </div>
         </div>
         <div class="window-actions">
@@ -45,7 +45,44 @@
               <div class="bubble-avatar">S</div>
             }
             <div class="bubble-content">
-              <p class="bubble-text">{{ msg.text }}</p>
+              <p class="bubble-text" style="white-space: pre-line;">{{ msg.text }}</p>
+
+              <!-- Confirmation action card -->
+              @if (msg.isAction && msg.actionType === 'confirm_job' && msg.draftSummary) {
+                <div class="action-card-box">
+                  <div class="draft-card-badge">Ready to Publish</div>
+                  <button type="button" class="btn-confirm-post" (click)="executeJobCreation('chat')" [disabled]="isSubmittingJob()">
+                    @if (isSubmittingJob()) {
+                      <span class="spinner-small"></span>
+                      <span>Publishing Job...</span>
+                    } @else {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span>Confirm & Post Job</span>
+                    }
+                  </button>
+                </div>
+              }
+
+              <!-- Guardrail redirection buttons -->
+              @if (msg.isAction && msg.actionType === 'nav_register') {
+                <div class="guardrail-buttons-row">
+                  <button type="button" class="btn-guardrail-action" (click)="navigateTo('register')">
+                    Go to Register Page &rarr;
+                  </button>
+                  <button type="button" class="btn-guardrail-action outline" (click)="navigateTo('service-mode')">
+                    Provider Mode &rarr;
+                  </button>
+                </div>
+              }
+
+              @if (msg.isAction && msg.actionType === 'nav_login') {
+                <div class="guardrail-buttons-row">
+                  <button type="button" class="btn-guardrail-action" (click)="navigateTo('login')">
+                    Go to Login &rarr;
+                  </button>
+                </div>
+              }
+
               <span class="bubble-time">{{ msg.time }}</span>
             </div>
           </div>
@@ -53,7 +90,7 @@
 
         <!-- Quick suggestion chips -->
         <div class="quick-prompts-area">
-          <span class="quick-title">Suggested requests:</span>
+          <span class="quick-title">Quick Actions:</span>
           <div class="prompts-list">
             @for (prompt of quickPrompts; track prompt) {
               <button type="button" class="prompt-chip" (click)="selectQuickPrompt(prompt)">
@@ -69,7 +106,7 @@
         <input
           type="text"
           class="chat-input"
-          placeholder="Ask Sera anything about services or jobs..."
+          placeholder="Ask Sera to post a job or answer questions..."
           [ngModel]="userInputText()"
           (ngModelChange)="userInputText.set($event)"
           (keydown.enter)="sendMessage()"
@@ -100,7 +137,7 @@
           </div>
           <div class="bot-info">
             <h3 class="bot-name">Sera Voice</h3>
-            <span class="bot-status">Voice AI Companion</span>
+            <span class="bot-status">Your Work Assistant &bull; Listening</span>
           </div>
         </div>
         <div class="window-actions">
@@ -133,10 +170,43 @@
 
         <p class="voice-status-label">{{ voiceStatusText() }}</p>
 
+        <!-- Live Memorized Parameters Card (if collecting/ready) -->
+        @if (currentJobDraft().isActive && currentJobDraft().title) {
+          <div class="memorized-draft-pill">
+            <div class="pill-header">
+              <span>📋 Memorized Job Details:</span>
+              @if (currentJobDraft().title && currentJobDraft().city && currentJobDraft().budget && currentJobDraft().urgency) {
+                <span class="badge-ready">Ready</span>
+              } @else {
+                <span class="badge-collecting">Collecting</span>
+              }
+            </div>
+            <div class="pill-items">
+              <span><strong>Job:</strong> {{ currentJobDraft().title }}</span>
+              @if (currentJobDraft().city) { <span><strong>City:</strong> {{ currentJobDraft().city }}</span> }
+              @if (currentJobDraft().budget) { <span><strong>Budget:</strong> Rs. {{ currentJobDraft().budget?.toLocaleString() }}</span> }
+              @if (currentJobDraft().urgency) { <span><strong>Timeline:</strong> {{ currentJobDraft().urgency }}</span> }
+            </div>
+
+            @if (currentJobDraft().title && currentJobDraft().city && currentJobDraft().budget && currentJobDraft().urgency) {
+              <button type="button" class="btn-confirm-voice-job" (click)="executeJobCreation('voice')" [disabled]="isSubmittingJob()">
+                Confirm &amp; Post Job
+              </button>
+            }
+          </div>
+        }
+
         @if (voiceTranscript()) {
           <div class="voice-transcript-card">
             <span class="transcript-header">You said:</span>
-            <p class="transcript-text">{{ voiceTranscript() }}</p>
+            <p class="transcript-text">&ldquo;{{ voiceTranscript() }}&rdquo;</p>
+          </div>
+        }
+
+        @if (seraVoiceReply()) {
+          <div class="voice-reply-card">
+            <span class="transcript-header" style="color: #818cf8;">Sera:</span>
+            <p class="transcript-text" style="color: #f8fafc; font-style: normal; white-space: pre-line;">{{ seraVoiceReply() }}</p>
           </div>
         }
       </div>
@@ -202,6 +272,7 @@
           (click)="toggleMenu()"
           [class.expanded]="isExpanded()"
           [class.window-open]="activeMode() !== 'none'"
+          [class.label-hidden]="isLabelHidden()"
           title="Asked from Sera"
         >
           <div class="main-avatar-wrapper">
