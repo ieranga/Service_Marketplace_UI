@@ -654,70 +654,71 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private getFemaleVoice(): SpeechSynthesisVoice | null {
     if (!isPlatformBrowser(this.platformId) || !('speechSynthesis' in window)) return null;
-    const voices = (this.cachedVoices && this.cachedVoices.length > 0)
-      ? this.cachedVoices
-      : window.speechSynthesis.getVoices();
 
+    // Refresh voices list in case mobile browser populated it after user interaction
+    const currentVoices = window.speechSynthesis.getVoices();
+    const voices = (currentVoices && currentVoices.length > 0) ? currentVoices : this.cachedVoices;
     if (!voices || voices.length === 0) return null;
 
-    // Prioritized list of known female voice names (case-insensitive)
-    const femaleKeywords = [
-      'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria',
-      'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena',
-      'fiona', 'stephanie', 'moira', 'ava', 'allison', 'olivia',
-      'clara', 'catherine', 'alice', 'linda', 'eva', 'female', 'woman'
+    // STRICT REQUIREMENT: Only consider English language voices (en, en-US, en-GB, en-AU, etc.)
+    // Under NO circumstance should non-English voices (e.g. Italian Alice, Spanish Eva) ever be selected
+    const enVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    if (enVoices.length === 0) return null;
+
+    // Specific English female voice identifiers on Windows, iOS, Android, macOS
+    const enFemaleKeywords = [
+      'samantha', 'jenny', 'aria', 'zira', 'sonia', 'ava', 'allison',
+      'victoria', 'karen', 'susan', 'hazel', 'heera', 'neerja', 'fiona',
+      'stephanie', 'moira', 'female'
     ];
 
-    // 1. High priority: English voice matching female names
-    for (const keyword of femaleKeywords) {
-      const match = voices.find(v =>
-        v.lang.toLowerCase().startsWith('en') &&
-        v.name.toLowerCase().includes(keyword)
-      );
+    // Priority 1: English voices with explicit female keywords
+    for (const keyword of enFemaleKeywords) {
+      const match = enVoices.find(v => v.name.toLowerCase().includes(keyword));
       if (match) return match;
     }
 
-    // 2. Google US English (default female voice on Chrome/Android) or UK English Female
-    const googleVoice = voices.find(v =>
-      v.lang.toLowerCase().startsWith('en') &&
-      (v.name.includes('Female') || v.name.includes('Google US English'))
+    // Priority 2: Google English Female or Google US English (Android / Chrome)
+    const googleEn = enVoices.find(v =>
+      v.name.toLowerCase().includes('google') &&
+      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('us english'))
     );
-    if (googleVoice) return googleVoice;
+    if (googleEn) return googleEn;
 
-    // 3. Any language voice with female keyword
-    for (const keyword of femaleKeywords) {
-      const match = voices.find(v => v.name.toLowerCase().includes(keyword));
-      if (match) return match;
-    }
+    // Priority 3: Any English voice with female in voiceURI
+    const uriFemale = enVoices.find(v => v.voiceURI && v.voiceURI.toLowerCase().includes('female'));
+    if (uriFemale) return uriFemale;
 
-    // 4. Fallback to any English voice
-    const fallbackEn = voices.find(v => v.lang.toLowerCase().startsWith('en'));
-    return fallbackEn || voices[0] || null;
+    // Priority 4: Standard en-US voice
+    const enUS = enVoices.find(v => v.lang.toLowerCase().replace('_', '-') === 'en-us');
+    if (enUS) return enUS;
+
+    // Priority 5: Any other English voice (en-GB, en-AU, etc.) - NEVER a non-English voice
+    return enVoices[0];
   }
 
   private speakOutLoud(text: string): void {
     if (!isPlatformBrowser(this.platformId) || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
-      const clean = text.replace(/[*#_~`]/g, '');
+      const clean = text.replace(/[*#_~`]/g, '').trim();
+      if (!clean) return;
+
       const utterance = new SpeechSynthesisUtterance(clean);
 
+      // MANDATORY: ALWAYS force English language code so mobile devices never use a non-English engine
+      utterance.lang = 'en-US';
+
       const femaleVoice = this.getFemaleVoice();
-      if (femaleVoice) {
+      if (femaleVoice && femaleVoice.lang && femaleVoice.lang.toLowerCase().startsWith('en')) {
         utterance.voice = femaleVoice;
-        utterance.lang = femaleVoice.lang || 'en-US';
-      } else {
-        utterance.lang = 'en-US';
+        utterance.lang = femaleVoice.lang;
       }
 
       utterance.rate = 1.0;
 
-      const isNamedFemale = femaleVoice && [
-        'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria',
-        'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena', 'female'
-      ].some(n => femaleVoice.name.toLowerCase().includes(n));
-
-      utterance.pitch = isNamedFemale ? 1.12 : 1.25;
+      const isKnownFemale = femaleVoice && /\b(samantha|jenny|aria|zira|sonia|ava|allison|victoria|karen|susan|hazel|heera|neerja|female)\b/i.test(femaleVoice.name);
+      utterance.pitch = isKnownFemale ? 1.12 : 1.25;
 
       utterance.onstart = () => this.isSeraSpeaking.set(true);
       utterance.onend = () => this.isSeraSpeaking.set(false);
