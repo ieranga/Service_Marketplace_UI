@@ -191,13 +191,13 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // Send a chat message
   sendMessage(): void {
-    const text = this.userInputText().trim();
-    if (!text) return;
+    const rawText = this.userInputText().trim();
+    if (!rawText) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: text,
+      text: rawText,
       time: this.formatCurrentTime()
     };
 
@@ -207,7 +207,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Conversational Agent processing
     setTimeout(() => {
-      this.processAgentConversation(text, 'chat');
+      this.processAgentConversation(rawText, 'chat');
     }, 400);
   }
 
@@ -216,14 +216,26 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.sendMessage();
   }
 
+  // Normalize speech-to-text input to fix common browser voice recognition phonetics
+  private normalizeUserInput(input: string): string {
+    let text = input.trim();
+    // Normalize speech misrecognition e.g. "object request" -> "job request"
+    text = text.replace(/\b(object|opt|chop|jop|java|jobb|drop)\s*(request|req)\b/gi, 'job request');
+    text = text.replace(/\b(create|post|new|need|want|open|make)\s+(an?\s+)?(object|opt|chop|jop|java)\b/gi, '$1 $2job');
+    text = text.replace(/\b(object|opt|chop|jop)\s+request\b/gi, 'job request');
+    text = text.replace(/\b(seraph|sarah|cera|sarra|serra)\b/gi, 'sera');
+    return text;
+  }
+
   // =========================================================================
   // SERA CONVERSATIONAL AGENT ENGINE
   // =========================================================================
   private processAgentConversation(userText: string, channel: 'chat' | 'voice'): void {
-    const textLower = userText.toLowerCase().trim();
+    const normalizedText = this.normalizeUserInput(userText);
+    const textLower = normalizedText.toLowerCase().trim();
 
     // -----------------------------------------------------------------------
-    // RULE 1: GUARDRAIL - Sera CANNOT create user profiles or provider profiles
+    // RULE 1: GUARDRAIL - Sera CANNOT create user accounts or provider profiles
     // -----------------------------------------------------------------------
     if (
       /(create|make|register|setup|open|add)\s+(my\s+)?(user\s+)?(account|profile|user\s+profile|provider\s+profile)/i.test(textLower) ||
@@ -240,20 +252,21 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     // "Whether the user logs in, Sera cannot create a service request if user not create his service profile."
     // -----------------------------------------------------------------------
     const isServiceRequestIntent =
-      /(service\s*request)/i.test(textLower) ||
-      /(create|post|add|offer|publish|provide|new)\s+(a\s+)?(service\s*request|service\s*offering|service\b)/i.test(textLower) ||
-      /(offer|provide)\s+(a\s+)?service\b/i.test(textLower) ||
-      /(add|post|create)\s+my\s+services?/i.test(textLower);
+      /\b(service\s*request)\b/i.test(textLower) ||
+      /\b(service\s*offering)\b/i.test(textLower) ||
+      /\b(offer|provide)\s+(a\s+)?service\b/i.test(textLower) ||
+      /\b(create|post|add|publish)\s+(a\s+)?(new\s+)?(service\s*request|service\s*offering|service\b)/i.test(textLower) ||
+      /\b(add|post|create)\s+my\s+services?\b/i.test(textLower);
 
     if (isServiceRequestIntent) {
-      // 1. Must be logged in
+      // 1. Condition: Must be logged in
       if (!this.auth.isAuthenticated()) {
         const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
         this.sendAgentActionReply(notLoggedInMsg, 'nav_login', channel);
         return;
       }
 
-      // 2. User is logged in: Check if service profile exists
+      // 2. Condition: User is logged in, check if service profile exists
       const hasProfile = !!this.auth.currentUser()?.hasServiceProfile;
       if (!hasProfile) {
         const noProfileMsg = "You cannot create a service request because you have not created your Service Profile yet. Please visit Service Mode to create your Service Profile first.";
@@ -273,39 +286,53 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     // -----------------------------------------------------------------------
     const draft = this.currentJobDraft();
 
-    // Check if user is confirming a pending job draft
-    if (draft.isActive && (textLower === 'confirm' || textLower === 'yes' || textLower === 'post it' || textLower === 'create it' || textLower === 'publish')) {
+    // Check if user is confirming an already memorized pending draft
+    if (draft.isActive && draft.title && (
+      textLower === 'confirm' || textLower === 'yes' || textLower === 'post it' ||
+      textLower === 'create it' || textLower === 'publish' || textLower === 'yes please' ||
+      textLower === 'confirm and post' || textLower === 'confirm and create'
+    )) {
       this.executeJobCreation(channel);
       return;
     }
 
     // Check if user wants to cancel a draft
-    if (draft.isActive && (textLower === 'cancel' || textLower === 'abort' || textLower === 'stop')) {
+    if (draft.isActive && (textLower === 'cancel' || textLower === 'abort' || textLower === 'stop' || textLower === 'clear')) {
       this.currentJobDraft.set({ isActive: false });
       const cancelReply = "Understood. I have cleared the job request draft. What else can I assist you with?";
       this.sendAgentReply(cancelReply, channel);
       return;
     }
 
-    // Detect if this message initiates or continues a job creation request
-    const isJobIntent = draft.isActive ||
-      /(create|post|publish|need|find|hire|want)\s+(a\s+)?(job\s*request|job|work|repair|clean|plumb|technician|electrician|mechanic|carpenter)/i.test(textLower) ||
-      /(fix|wash|install|service|paint|clean)\b/i.test(textLower);
+    // Comprehensive detection of job request intent (handles phrases like "I need to create a new job request")
+    const hasJobKeyword =
+      /\bjob\s*request\b/i.test(textLower) ||
+      /\b(new|create|post|make|publish|open)\s+(a\s+)?(job)\b/i.test(textLower) ||
+      /\b(need|want)\s+(to\s+)?(create|post|make|publish)\s+(a\s+)?(new\s+)?(job|work)\b/i.test(textLower) ||
+      /\b(hire|find)\s+(a\s+)?(worker|pro|technician|plumber|electrician|mechanic|carpenter|painter|cleaner)\b/i.test(textLower) ||
+      /\b(fix|repair|clean|paint|wash|install)\s+(my\s+)?(ac|air\s*con|pipe|leak|tap|sink|roof|car|bike|wiring|house|wall)\b/i.test(textLower);
+
+    const isAffirmative = /^(yes|yeah|sure|ok|okay|please|go ahead|proceed|yep|i do)(\s+.*)?$/i.test(textLower);
+    const lastMsgAskedAboutJob = this.chatMessages().slice(-1)[0]?.text?.toLowerCase().includes('job request') ||
+                                 this.seraVoiceReply().toLowerCase().includes('job request');
+
+    const isJobIntent = draft.isActive || hasJobKeyword || (isAffirmative && (draft.isActive || lastMsgAskedAboutJob));
 
     if (isJobIntent) {
-      // Must be logged in: Sera cannot create a job request until user logs in
+      // Condition 1: User must be logged in
       if (!this.auth.isAuthenticated()) {
         const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
         this.sendAgentActionReply(notLoggedInMsg, 'nav_login', channel);
         return;
       }
 
-      this.handleJobCreationDialogue(userText, channel);
+      // Condition 2: User is logged in -> proceed with dialogue
+      this.handleJobCreationDialogue(normalizedText, channel);
       return;
     }
 
     // -----------------------------------------------------------------------
-    // RULE 4: GENERAL CONVERSATIONAL RESPONSES
+    // RULE 4: GENERAL CONVERSATIONAL RESPONSES (Never mechanically repeat user text)
     // -----------------------------------------------------------------------
     if (/(hi|hello|hey|good\s*(morning|afternoon|evening))/i.test(textLower)) {
       this.sendAgentReply("Hi! I'm Sera, your work assistant. I can help you discover verified services, check prices, or create and post a job request for you. What would you like to get done?", channel);
@@ -313,7 +340,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     if (/(who\s+are\s+you|what\s+can\s+you\s+do|capabilities|help\s+me)/i.test(textLower)) {
-      this.sendAgentReply("I'm Sera, your dedicated marketplace AI work assistant! Here is what I can do for you:\n- Create and post verified job requests with customized budgets and locations (requires login)\n- Help you find top-rated service pros across Sri Lanka\n- Guide you on payments, ratings, and marketplace features.\n(Note: User accounts and service profiles must be created manually).", channel);
+      this.sendAgentReply("I'm Sera, your dedicated marketplace AI work assistant! Here is what I can do for you:\n- Create and post verified job demands with customized budgets and locations\n- Help you find top-rated service pros across Sri Lanka\n- Guide you on payments, ratings, and marketplace features.\n(Note: User accounts and service profiles must be created manually).", channel);
       return;
     }
 
@@ -322,11 +349,16 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    // Default conversational reply
-    this.sendAgentReply(`I understand you're asking about "${userText}". Would you like me to create a job request for this, or help you find verified service providers in your area?`, channel);
+    if (/(thank|thanks|great|cool|awesome|perfect)/i.test(textLower)) {
+      this.sendAgentReply("You're very welcome! Let me know whenever you need to post a job or find a verified service provider.", channel);
+      return;
+    }
+
+    // Friendly, helpful default fallback - never echo user text as a generic repeat
+    this.sendAgentReply("I'm here to help you get work done! Would you like me to help you create a job request, check prices, or find verified professionals in your area?", channel);
   }
 
-  // Handle step-by-step job creation dialogue & memorization
+  // Handle step-by-step job creation dialogue & parameter memorization
   private handleJobCreationDialogue(userText: string, channel: 'chat' | 'voice'): void {
     if (!this.auth.isAuthenticated()) {
       const notLoggedInMsg = "Sera cannot create a job request or service request until you log in to the system. Please log in to your account first to continue.";
@@ -334,8 +366,23 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    const textLower = userText.toLowerCase();
+    const textLower = userText.toLowerCase().trim();
     const current = { ...this.currentJobDraft(), isActive: true };
+
+    // Check if the input is purely a trigger command without actual work/trade details
+    // e.g., "I need to create a new job request", "yes I need to create new job request", "create a job request"
+    const cleanedTriggerWords = textLower
+      .replace(/\b(yes|yeah|sure|please|ok|okay|i|need|to|want|can|you|create|post|publish|make|open|a|an|new|job|request|work|service|task|start|do)\b/gi, '')
+      .replace(/[.,!?"']/g, '')
+      .trim();
+
+    // If no title yet and the user only said the trigger phrase, politely ask for the requirement
+    if (!current.title && cleanedTriggerWords.length === 0) {
+      this.currentJobDraft.set(current);
+      const askForJobReply = "Sure! I can help you create a new job request. What service or repair work do you need done? (For example: Plumbing, AC Repair, Electrical, Painting, Cleaning)";
+      this.sendAgentReply(askForJobReply, channel);
+      return;
+    }
 
     // 1. Memorize Budget if mentioned
     const budgetMatch = userText.match(/(?:rs\.?|lkr|budget|cost|price)?\s*[:=]?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,7})\s*(?:rs\.?|lkr|rupees)?/i) ||
@@ -382,20 +429,22 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       current.paymentMethod = 'Cash';
     }
 
-    // 5. Memorize Title / Requirement if not set yet
-    if (!current.title) {
+    // 5. Extract Title / Requirement if not set yet
+    if (!current.title && cleanedTriggerWords.length > 0) {
       let cleaned = userText
-        .replace(/(?:create|post|publish|need|find|hire|want)\s+(?:a\s+)?(?:job|service\s*request|work)?/gi, '')
-        .replace(/(?:in|near|at)\s+(?:colombo|rathnapura|ratnapura|kandy|galle|negombo|matara|gampaha|kurunegala|kalutara|jaffna)/gi, '')
+        .replace(/\b(?:yes|yeah|sure|please|ok|okay)\b/gi, '')
+        .replace(/\b(?:i\s+need\s+to|i\s+want\s+to|can\s+you|please)?\s*(?:create|post|publish|make|open)\s+(?:a\s+)?(?:new\s+)?(?:job\s*request|job|work|request)\s*(?:for|to|about)?\b/gi, '')
+        .replace(/\b(?:in|near|at)\s+(?:colombo|rathnapura|ratnapura|kandy|galle|negombo|matara|gampaha|kurunegala|kalutara|jaffna|batticaloa|anuradhapura|badulla|trincomalee|puttalam|nuwara eliya|kegalle|polonnaruwa|hambantota)\b/gi, '')
         .replace(/(?:rs\.?|lkr|budget|cost|price)?\s*[:=]?\s*[0-9,]{3,10}\s*(?:rs\.?|lkr|rupees)?/gi, '')
-        .replace(/(?:urgent|today|tomorrow|this weekend|flexible)/gi, '')
-        .replace(/^(?:for|to|with|please)\s+/gi, '')
+        .replace(/\b(?:urgent|today|tomorrow|this weekend|next week|flexible)\b/gi, '')
+        .replace(/\b(?:cash|bank transfer|card|online payment)\b/gi, '')
+        .replace(/^(?:for|to|with|about|a|an)\s+/gi, '')
         .trim();
 
       if (cleaned.length >= 3) {
         current.title = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-      } else if (userText.trim().length > 3) {
-        current.title = userText.trim();
+      } else if (cleanedTriggerWords.length >= 3) {
+        current.title = cleanedTriggerWords.charAt(0).toUpperCase() + cleanedTriggerWords.slice(1);
       }
     }
 
@@ -403,14 +452,14 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Check what parameters are still missing
     const missing: string[] = [];
-    if (!current.title) missing.push('what job/service you need');
+    if (!current.title) missing.push('what job/service you need (e.g. Plumbing, AC Repair, Electrical)');
     if (!current.city) missing.push('your city/location (e.g. Colombo, Kandy, Rathnapura)');
-    if (!current.budget) missing.push('your estimated budget (in Rs.)');
+    if (!current.budget) missing.push('your estimated budget in Rs. (e.g. Rs. 5000)');
     if (!current.urgency) missing.push('your preferred timeline (e.g. Today, This Weekend, Flexible)');
 
-    // If parameters are missing, ask for the next one while confirming what was memorized
+    // If parameters are missing, ask for the next one while acknowledging what was memorized
     if (missing.length > 0) {
-      let reply = `Got it! I have memorized your job requirement`;
+      let reply = `Got it! I am preparing your job request`;
       const details: string[] = [];
       if (current.title) details.push(`Requirement: "${current.title}"`);
       if (current.city) details.push(`Location: ${current.city}`);
@@ -423,12 +472,12 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
         reply += `.\n\n`;
       }
 
-      reply += `To finalize your request, please tell me: ${missing[0]}.`;
+      reply += `To continue, please tell me: ${missing[0]}.`;
       this.sendAgentReply(reply, channel);
       return;
     }
 
-    // All parameters memorized! Present confirmation card to the user
+    // All parameters memorized! Present confirmation card
     if (!current.paymentMethod) current.paymentMethod = 'Cash';
     this.currentJobDraft.set(current);
 
