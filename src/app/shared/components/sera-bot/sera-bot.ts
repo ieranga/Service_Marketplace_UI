@@ -100,6 +100,7 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
   private speechRecognition: any = null;
   private shouldScrollChat = false;
   private rollTimer: any = null;
+  private cachedVoices: SpeechSynthesisVoice[] = [];
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -107,6 +108,14 @@ export class SeraBotComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.rollTimer = setTimeout(() => {
         this.isLabelHidden.set(true);
       }, 5000);
+
+      // Pre-warm SpeechSynthesis voices so female voice is ready immediately
+      if ('speechSynthesis' in window) {
+        this.cachedVoices = window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+          this.cachedVoices = window.speechSynthesis.getVoices();
+        };
+      }
     }
   }
 
@@ -559,14 +568,73 @@ Would you like me to post this job to the marketplace now? Say or type "Confirm"
     this.isVoiceListening.set(false);
   }
 
+  private getFemaleVoice(): SpeechSynthesisVoice | null {
+    if (!isPlatformBrowser(this.platformId) || !('speechSynthesis' in window)) return null;
+    const voices = (this.cachedVoices && this.cachedVoices.length > 0)
+      ? this.cachedVoices
+      : window.speechSynthesis.getVoices();
+
+    if (!voices || voices.length === 0) return null;
+
+    // Prioritized list of known female voice names (case-insensitive)
+    const femaleKeywords = [
+      'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria', 
+      'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena', 
+      'fiona', 'stephanie', 'moira', 'ava', 'allison', 'olivia', 
+      'clara', 'catherine', 'alice', 'linda', 'eva', 'female', 'woman'
+    ];
+
+    // 1. High priority: English voice matching female names
+    for (const keyword of femaleKeywords) {
+      const match = voices.find(v => 
+        v.lang.toLowerCase().startsWith('en') && 
+        v.name.toLowerCase().includes(keyword)
+      );
+      if (match) return match;
+    }
+
+    // 2. Google US English (default female voice on Chrome/Android) or UK English Female
+    const googleVoice = voices.find(v => 
+      v.lang.toLowerCase().startsWith('en') && 
+      (v.name.includes('Female') || v.name.includes('Google US English'))
+    );
+    if (googleVoice) return googleVoice;
+
+    // 3. Any language voice with female keyword
+    for (const keyword of femaleKeywords) {
+      const match = voices.find(v => v.name.toLowerCase().includes(keyword));
+      if (match) return match;
+    }
+
+    // 4. Fallback to any English voice
+    const fallbackEn = voices.find(v => v.lang.toLowerCase().startsWith('en'));
+    return fallbackEn || voices[0] || null;
+  }
+
   private speakOutLoud(text: string): void {
     if (!isPlatformBrowser(this.platformId) || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
-      const clean = text.replace(/[•\*\#\_]/g, '');
+      const clean = text.replace(/[*#_~`]/g, '');
       const utterance = new SpeechSynthesisUtterance(clean);
+
+      const femaleVoice = this.getFemaleVoice();
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        utterance.lang = femaleVoice.lang || 'en-US';
+      } else {
+        utterance.lang = 'en-US';
+      }
+
       utterance.rate = 1.0;
-      utterance.pitch = 1.05;
+
+      // Adjust pitch to ensure a natural, pleasant female tone
+      const isNamedFemale = femaleVoice && [
+        'zira', 'jenny', 'aria', 'sonia', 'samantha', 'victoria',
+        'karen', 'hazel', 'susan', 'heera', 'neerja', 'serena', 'female'
+      ].some(n => femaleVoice.name.toLowerCase().includes(n));
+
+      utterance.pitch = isNamedFemale ? 1.12 : 1.25;
       window.speechSynthesis.speak(utterance);
     } catch {}
   }
